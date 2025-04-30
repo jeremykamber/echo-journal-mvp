@@ -1,7 +1,6 @@
 import React from 'react';
 import useConversationStore from '@/store/conversationStore';
 import { ChatInput } from '@/components/ChatInput';
-import { useNavigate } from 'react-router-dom';
 import { useAI } from '@/context/AIContext';
 
 interface PromptBarProps {
@@ -17,7 +16,6 @@ const PromptBar: React.FC<PromptBarProps> = ({
 }) => {
     const [input, setInput] = React.useState('');
     const createConversation = useConversationStore((state) => state.createConversation);
-    const navigate = useNavigate();
 
     const { sendMessageToAI } = useAI();
 

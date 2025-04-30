@@ -110,7 +110,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, hasStartedEditing }) => 
             let addedMessageId: string | null = null;
             try {
                 const stream = streamRealtimeReflection(reflectionTarget, entryId);
-                for await (const { token, done } of stream) {
+                for await (const { token } of stream) {
                     if (cancelled) break;
                     if (!addedMessageId) {
                         // Add the message on first token

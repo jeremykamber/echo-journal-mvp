@@ -1,6 +1,5 @@
 // filepath: /Users/jeremy/Development/Apps/echo-journal-mvp/src/components/ThinkingIndicator.tsx
 import React from 'react';
-import { cn } from '@/lib/utils';
 
 const ThinkingIndicator: React.FC = () => {
     return (

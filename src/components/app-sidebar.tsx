@@ -71,7 +71,6 @@ const data: { navMain: NavGroup[] } = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation()
   const navigate = useNavigate()
-  const entries = useJournalStore((state) => state.entries)
   const conversations = useConversationStore((state) => state.conversations)
   const createEntry = useJournalStore((state) => state.createEntry)
 

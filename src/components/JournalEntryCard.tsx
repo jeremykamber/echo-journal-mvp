@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { JournalEntry } from '@/store/journalStore';
 import DeleteEntryButton from '@/components/DeleteEntryButton'; // Import the delete button
-import { formatDate, cn } from '@/lib/utils'; // Import cn
+import { formatDate } from '@/lib/utils'; // Import cn
 
 interface JournalEntryCardProps {
   entry: JournalEntry;

@@ -22,7 +22,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
         failed: number
     }) => {
         // Auto-close after a successful import if there were no issues
-        if (successful > 0 && failed === 0) {
+        if (successful > 0 && failed === 0 && skipped === 0) {
             setTimeout(() => {
                 onClose();
             }, 2000); // Give the user time to see the success message
