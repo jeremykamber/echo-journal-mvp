@@ -1,16 +1,16 @@
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
-import { ChatOllama, OllamaEmbeddings } from '@langchain/ollama';
+// import { ChatOllama, OllamaEmbeddings } from '@langchain/ollama';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { RunnableSequence, RunnablePassthrough, RunnableLambda } from '@langchain/core/runnables';
+import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { formatDocumentsAsString } from '@/lib/formatDocumentsAsString';
 import journalStore, { JournalEntry } from '@/store/journalStore';
 import conversationStore from '@/store/conversationStore';
 import { Document } from 'langchain/document';
-import { IterableReadableStream, IterableReadableStreamInterface } from '@langchain/core/utils/stream';
-import { clear } from 'console';
+import { IterableReadableStreamInterface } from '@langchain/core/utils/stream';
+import { OpenAIEmbeddings } from "@langchain/openai";
 
 // Define types for reflection responses
 export interface RealtimeReflectionResponse {
@@ -45,7 +45,11 @@ const realtimeLlm = new ChatOpenAI({
 //});
 
 const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1000, chunkOverlap: 200 });
-const embedder = new OllamaEmbeddings({ model: 'nomic-embed-text', baseUrl: 'http://localhost:11434', maxRetries: 2 });
+// Using OpenAI's lightweight embedding model
+const embedder = new OpenAIEmbeddings({
+  model: "text-embedding-ada-002",
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+});
 
 // Cache for vector store to avoid rebuilding for each request
 let vectorStoreCache: MemoryVectorStore | null = null;
@@ -271,6 +275,7 @@ export async function* reflectRAG(question: string, conversationId: string, entr
         - "This reminds me of your thoughts on... [cite:entry-101283108-saosdna]"\n
   9. Make sure citations are inline and integrated naturally into your reflection\n
   10. Try your best to connect the dots across MULTIPLE entries, not just one.\n\n
+      This is the user's current journal entry: \n{currentEntryContent}\n\n
       Recent chat history: \n{chatHistory}\n\n
       Here are some relevant past journal entries: \n{context}\n\n
       Respond to the user's message in a way that is empathetic, insightful, and references past entries where appropriate.\n
@@ -285,6 +290,7 @@ export async function* reflectRAG(question: string, conversationId: string, entr
   ]);
   const stream = await chain.stream({
     question: question,
+    currentEntryContent: currentEntryContent,
     chatHistory,
     context: formattedDocs
   });
