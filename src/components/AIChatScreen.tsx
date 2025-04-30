@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AppHeader from './AppHeader';
 import { useNavigate, useParams } from 'react-router-dom';
 import useJournalStore from '@/store/journalStore';
 import useConversationStore from '@/store/conversationStore';
@@ -13,6 +14,7 @@ import DeleteConversationButton from '@/components/DeleteConversationButton';
 import { PlusIcon } from 'lucide-react';
 // import PromptBar from '@/components/PromptBar';
 import ImportButton from '@/components/ImportButton';
+import { SidebarTrigger } from './ui/sidebar';
 
 const AIChatScreen: React.FC = () => {
     const navigate = useNavigate();
@@ -120,25 +122,26 @@ const AIChatScreen: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-radial from-primary-foreground/5 to-transparent opacity-70"></div>
             {/* Noise texture */}
             <div className="absolute inset-0 bg-noise opacity-20 mix-blend-soft-light"></div>
+            {/* App Header with animation */}
+            <div
+                className={cn(
+                    "overflow-hidden transition-all duration-300 ease-out",
+                    isConversation
+                        ? "max-h-20 opacity-100"
+                        : "max-h-0 opacity-0"
+                )}
+            >
+                <AppHeader
+                    center={
+                        <span className="text-xl font-semibold truncate max-w-[70vw]">{conversationTitle}</span>
+                    }
+                    right={
+                        <DeleteConversationButton conversationId={conversationId!} onDelete={() => navigate('/')} />
+                    }
+                />
+
+            </div>
             <div className="relative flex flex-col flex-1">
-                {/* Conversation header (delete button) */}
-                {/* Animated header: always rendered, animates height and opacity */}
-                <div
-                    className={cn(
-                        "overflow-hidden border-b border-border bg-background/80 z-10 transition-all duration-300 flex items-center justify-between",
-                        isConversation
-                            ? "h-[70px] px-6 pt-6 pb-6 opacity-100"
-                            : "h-0 px-6 pt-0 pb-0 opacity-0"
-                    )}
-                    style={{ minHeight: 0 }}
-                >
-                    {isConversation && (
-                        <>
-                            <h2 className="text-xl font-semibold truncate max-w-[70%] transition-opacity duration-300 opacity-100">{conversationTitle}</h2>
-                            <DeleteConversationButton conversationId={conversationId!} onDelete={() => navigate('/')} />
-                        </>
-                    )}
-                </div>
                 {/* Scrollable content area */}
                 <div className="flex-1 overflow-auto relative">
                     {/* Only render one view at a time to prevent flicker */}
@@ -150,6 +153,7 @@ const AIChatScreen: React.FC = () => {
                                 !isLoaded ? 'opacity-0' : homeFading ? 'opacity-0' : 'opacity-100'
                             )}
                         >
+                            <SidebarTrigger className="md:hidden m-4" />
                             <div className="container flex flex-col items-center mx-auto relative z-10 flex-1 overflow-y-auto p-8">
                                 <EyebrowTextPill
                                     isLoaded={isLoaded}
@@ -168,7 +172,7 @@ const AIChatScreen: React.FC = () => {
                                     style={{ animationDelay: '400ms' }}
                                 >
                                     Welcome to
-                                    <br className="hidden md:block" />
+                                    <br />
                                     <span className="text-primary">Echo</span>
                                 </h1>
                                 <div className="w-full mb-8 flex flex-wrap justify-center gap-4">
@@ -222,9 +226,14 @@ const AIChatScreen: React.FC = () => {
                     )}
                 </div>
 
-                {/* Fixed prompt/input bar at bottom */}
-                <div className="shrink-0 bg-background mb-4 mx-8">
-                    <ChatInput value={input} onChange={setInput} onSend={handleSend} />
+                {/* Floating prompt/input bar at bottom */}
+                <div
+                    className="pointer-events-none absolute left-0 right-0 bottom-0 z-30 flex justify-center bg-transparent"
+                    style={{ width: '100%' }}
+                >
+                    <div className="pointer-events-auto w-full max-w-2xl px-4 pb-6">
+                        <ChatInput value={input} onChange={setInput} onSend={handleSend} />
+                    </div>
                 </div>
             </div> {/* close relative flex-1 */}
         </section>

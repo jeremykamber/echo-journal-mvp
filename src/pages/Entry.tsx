@@ -1,5 +1,5 @@
-// filepath: /Users/jeremy/Development/Apps/echo-journal-mvp/src/pages/Entry.tsx
 import React, { useState, useEffect } from 'react';
+import AppHeader from '../components/AppHeader';
 import { useParams, Link } from 'react-router-dom';
 import useJournalStore from '@/store/journalStore';
 import ChatPanel from '@/components/ChatPanel';
@@ -28,12 +28,10 @@ const Entry: React.FC = () => {
     if (!entry || !id) {
         return <div className="p-4">Entry not found.</div>;
     }
-
     return (
-        <div className="flex flex-col h-screen md:flex-row">
-            {/* Main Entry Area */}
-            <div className="flex-1 min-w-0 p-4 md:p-8 overflow-y-auto bg-background flex flex-col">
-                <div className="flex items-center justify-between mb-4">
+        <>
+            <AppHeader
+                left={
                     <Link
                         to="/entries"
                         className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-primary transition-colors p-2 -ml-2"
@@ -43,18 +41,9 @@ const Entry: React.FC = () => {
                         </svg>
                         Back to Entries
                     </Link>
-
-                    {/* Add delete button with confirmation */}
-                    <DeleteEntryButton
-                        entryId={id}
-                        redirectToHome={true}
-                    />
-                </div>
-                <div className={cn(
-                    "flex items-center justify-between mb-4 border-b border-border pb-2",
-                    "focus-within:border-primary transition-colors"
-                )}>
-                    {isEditingTitle ? (
+                }
+                center={
+                    isEditingTitle ? (
                         <div className="flex items-center w-full">
                             <input
                                 type="text"
@@ -105,36 +94,42 @@ const Entry: React.FC = () => {
                                 <PencilIcon size={16} />
                             </button>
                         </div>
-                    )}
+                    )
+                }
+                right={<DeleteEntryButton entryId={id} redirectToHome={true} />}
+            />
+            <div className="flex flex-col h-screen md:flex-row">
+                {/* Main Entry Area */}
+                <div className="flex-1 min-w-0 p-4 md:p-8 overflow-y-auto bg-background flex flex-col">
+                    <div className="flex flex-col flex-1 min-h-0 space-y-4">
+                        {/* Minimal Text Box */}
+                        <textarea
+                            value={entry.content}
+                            onChange={(e) => {
+                                updateEntry(entry.id, e.target.value);
+                                if (!hasStartedEditing && e.target.value !== entry.content) {
+                                    setHasStartedEditing(true);
+                                }
+                            }}
+                            className={cn(
+                                "w-full h-full bg-transparent text-base resize-none flex-1 min-h-0",
+                                "focus:outline-none",
+                                "placeholder:text-muted-foreground/50"
+                            )}
+                            placeholder="Write your entry here..."
+                            style={{ minHeight: 0 }}
+                        />
+                        {/* RealtimeReflection removed: now handled in chat */}
+                    </div>
                 </div>
-                <div className="flex flex-col flex-1 min-h-0 space-y-4">
-                    {/* Minimal Text Box */}
-                    <textarea
-                        value={entry.content}
-                        onChange={(e) => {
-                            updateEntry(entry.id, e.target.value);
-                            if (!hasStartedEditing && e.target.value !== entry.content) {
-                                setHasStartedEditing(true);
-                            }
-                        }}
-                        className={cn(
-                            "w-full h-full bg-transparent text-base resize-none flex-1 min-h-0",
-                            "focus:outline-none",
-                            "placeholder:text-muted-foreground/50"
-                        )}
-                        placeholder="Write your entry here..."
-                        style={{ minHeight: 0 }}
-                    />
-                    {/* RealtimeReflection removed: now handled in chat */}
+                {/* Chat Panel */}
+                <div
+                    className="w-full md:w-[350px] md:max-w-sm border-t md:border-t-0 md:border-l border-border bg-muted/10 flex flex-col h-[400px] md:h-full shrink-0"
+                >
+                    <ChatPanel entryId={entry.id} hasStartedEditing={hasStartedEditing} />
                 </div>
             </div>
-            {/* Chat Panel */}
-            <div
-                className="w-full md:w-[350px] md:max-w-sm border-t md:border-t-0 md:border-l border-border bg-muted/10 flex flex-col h-[400px] md:h-full shrink-0"
-            >
-                <ChatPanel entryId={entry.id} hasStartedEditing={hasStartedEditing} />
-            </div>
-        </div>
+        </>
     );
 };
 

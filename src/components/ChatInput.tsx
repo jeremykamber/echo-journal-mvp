@@ -19,7 +19,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     placeholder = "Type a message..."
 }) => (
     <div className="px-4 py-2">
-        <div className="flex items-center gap-2 bg-white dark:bg-input/40 shadow-md rounded-full px-4 py-2 border border-muted dark:border-input">
+        <div className="flex items-center gap-2 bg-white dark:bg-input-opaque shadow-md rounded-full px-4 py-2 border border-muted dark:border-input">
             <input
                 value={value}
                 onChange={e => onChange(e.target.value)}

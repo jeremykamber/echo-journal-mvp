@@ -41,7 +41,7 @@ function App() {
               <Route path="/entry/:id" element={<Entry />} />
               <Route path="/conversation/:id" element={<AIChatScreen />} />
               <Route path="/settings" element={<SettingsScreen />} />
-              <Route path="/entries" element={<Entries/>} />
+              <Route path="/entries" element={<Entries />} />
             </Routes>
           </SidebarInset>
         </SidebarProvider>
