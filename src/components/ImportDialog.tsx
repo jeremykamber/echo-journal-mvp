@@ -1,6 +1,11 @@
-// filepath: /Users/jeremy/Development/Apps/echo-journal-mvp/src/components/ImportDialog.tsx
 import React from 'react';
-import { X } from 'lucide-react';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+} from '@/components/ui/dialog';
 import DocumentImporter from '@/components/DocumentImporter';
 import { cn } from '@/lib/utils';
 
@@ -28,31 +33,24 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
             }, 2000); // Give the user time to see the success message
         }
     };
-
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-            <div
-                className={cn(
-                    "bg-card border border-border rounded-lg shadow-xl w-full max-w-xl max-h-[80vh] overflow-auto",
-                    "animate-in fade-in zoom-in duration-200",
-                    className
-                )}
-            >
-                <div className="flex items-center justify-between border-b border-border p-4">
-                    <h2 className="text-xl font-medium">Import Journal Entries</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-1 rounded-full hover:bg-muted transition-colors"
-                        aria-label="Close"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
+        <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
+            <DialogContent className={cn("bg-card border border-border rounded-lg shadow-xl w-full max-w-xl max-h-[80vh] overflow-auto p-0", className)}>
+                <DialogHeader className="flex items-center justify-between border-b border-border p-4">
+                    <DialogTitle asChild>
+                        <h2 className="text-xl font-medium">Import Journal Entries</h2>
+                    </DialogTitle>
+                    <DialogClose asChild>
+                        <button
+                            className="p-1 rounded-full hover:bg-muted transition-colors"
+                            aria-label="Close"
+                        >
+                            <span className="sr-only">Close</span>
+                        </button>
+                    </DialogClose>
+                </DialogHeader>
                 <div className="p-6">
                     <DocumentImporter onComplete={handleImportComplete} />
-
                     <div className="mt-8 border-t border-border pt-4">
                         <h3 className="text-sm font-medium mb-2">Import Tips</h3>
                         <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
@@ -63,8 +61,8 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
                         </ul>
                     </div>
                 </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };
 

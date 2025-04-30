@@ -260,7 +260,7 @@ const AIChatScreen: React.FC = () => {
                                         style={{ animationDelay: '600ms' }}
                                     >
                                         <PlusIcon size={20} />
-                                        Start New Conversation
+                                        New Journal Entry
                                     </Button>
                                     <ImportButton isLoaded={isLoaded} showImportDialog={showImportDialog} setShowImportDialog={setShowImportDialog} />
                                 </div>
@@ -302,7 +302,7 @@ const AIChatScreen: React.FC = () => {
                     style={{ width: '100%' }}
                 >
                     <div className="pointer-events-auto w-full max-w-2xl px-4 pb-6">
-                        <ChatInput value={input} onChange={setInput} onSend={handleSend} />
+                        <ChatInput value={input} onChange={setInput} onSend={handleSend} placeholder='Explore your entries' />
                     </div>
                 </div>
             </div> {/* close relative flex-1 */}
