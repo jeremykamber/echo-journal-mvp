@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import useJournalStore from '@/store/journalStore';
 import ChatPanel from '@/components/ChatPanel';
 import { cn } from '@/lib/utils';
-import { PencilIcon, CheckIcon } from 'lucide-react';
+import { Pencil as PencilIcon, Check as CheckIcon, X as XIcon } from 'lucide-react';
 import DeleteEntryButton from '@/components/DeleteEntryButton';
 
 const Entry: React.FC = () => {
@@ -48,17 +48,17 @@ const Entry: React.FC = () => {
                             <input
                                 type="text"
                                 value={titleValue}
-                                onChange={(e) => setTitleValue(e.target.value)}
+                                onChange={e => setTitleValue(e.target.value)}
                                 className={cn(
-                                    "text-2xl font-semibold w-full",
-                                    "focus:outline-none focus:ring-0",
-                                    "bg-transparent placeholder:text-muted-foreground/50"
+                                    "text-2xl font-semibold w-full bg-transparent focus:outline-none focus:ring-0 placeholder:text-muted-foreground/50"
                                 )}
                                 autoFocus
-                                onKeyDown={(e) => {
+                                onKeyDown={e => {
                                     if (e.key === 'Enter') {
-                                        updateEntryTitle(entry.id, titleValue);
-                                        setIsEditingTitle(false);
+                                        if (id && titleValue.trim()) {
+                                            updateEntryTitle(id, titleValue.trim());
+                                            setIsEditingTitle(false);
+                                        }
                                     } else if (e.key === 'Escape') {
                                         setTitleValue(entry.title);
                                         setIsEditingTitle(false);
@@ -68,26 +68,38 @@ const Entry: React.FC = () => {
                             />
                             <button
                                 onClick={() => {
-                                    updateEntryTitle(entry.id, titleValue);
-                                    setIsEditingTitle(false);
+                                    if (id && titleValue.trim()) {
+                                        updateEntryTitle(id, titleValue.trim());
+                                        setIsEditingTitle(false);
+                                    }
                                 }}
                                 className={cn(
-                                    "p-2 ml-2 text-primary hover:text-primary/80",
-                                    "rounded-full hover:bg-primary/10 transition-colors"
+                                    "p-2 ml-2 text-primary hover:text-primary/80 rounded-full hover:bg-primary/10 transition-colors"
                                 )}
                                 title="Save title"
                             >
                                 <CheckIcon size={18} />
                             </button>
+                            <button
+                                onClick={() => {
+                                    setTitleValue(entry.title);
+                                    setIsEditingTitle(false);
+                                }}
+                                className={cn(
+                                    "p-2 ml-1 text-muted-foreground hover:text-destructive rounded-full hover:bg-destructive/10 transition-colors"
+                                )}
+                                title="Cancel"
+                            >
+                                <XIcon size={18} />
+                            </button>
                         </div>
                     ) : (
-                        <div className="flex items-center justify-between w-full">
-                            <h2 className="text-2xl font-semibold">{entry.title}</h2>
+                        <div className="flex items-center w-full justify-between">
+                            <h2 className="text-2xl font-semibold truncate flex-1">{entry.title}</h2>
                             <button
                                 onClick={() => setIsEditingTitle(true)}
                                 className={cn(
-                                    "p-2 text-muted-foreground hover:text-primary",
-                                    "rounded-full hover:bg-primary/10 transition-colors"
+                                    "p-2 ml-2 text-muted-foreground hover:text-primary rounded-full hover:bg-primary/10 transition-colors"
                                 )}
                                 title="Edit title"
                             >

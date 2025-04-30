@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import EyebrowTextPill from '@/components/EyebrowTextPill';
 import { Button } from '@/components/ui/button';
 import DeleteConversationButton from '@/components/DeleteConversationButton';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, Pencil as PencilIcon, Check as CheckIcon, X as XIcon } from 'lucide-react';
 // import PromptBar from '@/components/PromptBar';
 import ImportButton from '@/components/ImportButton';
 import { SidebarTrigger } from './ui/sidebar';
@@ -73,10 +73,29 @@ const AIChatScreen: React.FC = () => {
         setMessages(conversationId ? allMessages.filter(m => m.conversationId === conversationId) : []);
     }, [conversationId, allMessages]);
 
-    // Subscribe to conversation title at the top level (stable selector)
-    const conversationTitle = useConversationStore(state =>
-        conversationId ? state.getConversationById(conversationId)?.title ?? '' : ''
-    );
+    // Conversation title editing state
+    const getConversationById = useConversationStore(state => state.getConversationById);
+    const updateConversationTitle = useConversationStore(state => state.updateConversationTitle);
+    const conversation = conversationId ? getConversationById(conversationId) : undefined;
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [titleValue, setTitleValue] = useState(conversation?.title || '');
+
+    // Keep titleValue in sync with store
+    useEffect(() => {
+        if (conversation) setTitleValue(conversation.title);
+    }, [conversation?.id]);
+
+    const handleSaveTitle = () => {
+        if (conversationId && titleValue.trim()) {
+            updateConversationTitle(conversationId, titleValue.trim());
+            setIsEditingTitle(false);
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setTitleValue(conversation?.title || '');
+        setIsEditingTitle(false);
+    };
 
     const isConversation = !!conversationId;
 
@@ -133,13 +152,64 @@ const AIChatScreen: React.FC = () => {
             >
                 <AppHeader
                     center={
-                        <span className="text-xl font-semibold truncate max-w-[70vw]">{conversationTitle}</span>
+                        isConversation ? (
+                            isEditingTitle ? (
+                                <div className="flex items-center w-full max-w-[70vw]">
+                                    <input
+                                        type="text"
+                                        value={titleValue}
+                                        onChange={e => setTitleValue(e.target.value)}
+                                        className={cn(
+                                            "text-xl font-semibold w-full bg-transparent focus:outline-none focus:ring-0 placeholder:text-muted-foreground/50"
+                                        )}
+                                        autoFocus
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') handleSaveTitle();
+                                            else if (e.key === 'Escape') handleCancelEdit();
+                                        }}
+                                        placeholder="Conversation Title"
+                                    />
+                                    <button
+                                        onClick={handleSaveTitle}
+                                        className={cn(
+                                            "p-2 ml-2 text-primary hover:text-primary/80 rounded-full hover:bg-primary/10 transition-colors"
+                                        )}
+                                        title="Save title"
+                                    >
+                                        <CheckIcon size={18} />
+                                    </button>
+                                    <button
+                                        onClick={handleCancelEdit}
+                                        className={cn(
+                                            "p-2 ml-1 text-muted-foreground hover:text-destructive rounded-full hover:bg-destructive/10 transition-colors"
+                                        )}
+                                        title="Cancel"
+                                    >
+                                        <XIcon size={18} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center w-full max-w-[70vw]">
+                                    <span className="text-xl font-semibold truncate flex-1">{conversation?.title}</span>
+                                    <button
+                                        onClick={() => setIsEditingTitle(true)}
+                                        className={cn(
+                                            "p-2 ml-2 text-muted-foreground hover:text-primary rounded-full hover:bg-primary/10 transition-colors"
+                                        )}
+                                        title="Edit title"
+                                    >
+                                        <PencilIcon size={16} />
+                                    </button>
+                                </div>
+                            )
+                        ) : null
                     }
                     right={
-                        <DeleteConversationButton conversationId={conversationId!} onDelete={() => navigate('/')} />
+                        isConversation ? (
+                            <DeleteConversationButton conversationId={conversationId!} onDelete={() => navigate('/')} />
+                        ) : null
                     }
                 />
-
             </div>
             <div className="relative flex flex-col flex-1">
                 {/* Scrollable content area */}
