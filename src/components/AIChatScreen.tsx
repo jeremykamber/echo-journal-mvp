@@ -15,6 +15,7 @@ import { PlusIcon, Pencil as PencilIcon, Check as CheckIcon, X as XIcon } from '
 // import PromptBar from '@/components/PromptBar';
 import ImportButton from '@/components/ImportButton';
 import { SidebarTrigger } from './ui/sidebar';
+import Entries from '@/pages/Entries';
 
 const AIChatScreen: React.FC = () => {
     const navigate = useNavigate();
@@ -220,7 +221,7 @@ const AIChatScreen: React.FC = () => {
                         <div
                             id="home-view"
                             className={cn(
-                                'absolute inset-0 flex flex-col transition-opacity duration-300',
+                                'absolute inset-0 flex flex-col transition-opacity duration-300 mb-20',
                                 !isLoaded ? 'opacity-0' : homeFading ? 'opacity-0' : 'opacity-100'
                             )}
                         >
@@ -265,16 +266,7 @@ const AIChatScreen: React.FC = () => {
                                     </Button>
                                     <ImportButton isLoaded={isLoaded} showImportDialog={showImportDialog} setShowImportDialog={setShowImportDialog} />
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {entries.slice(0, 3).map(entry => (
-                                        <JournalEntryCard key={entry.id} entry={entry} />
-                                    ))}
-                                    {entries.length === 0 && (
-                                        <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-center text-muted-foreground p-8">
-                                            <p>No journal entries yet. Create your first one!</p>
-                                        </div>
-                                    )}
-                                </div>
+                                <Entries />
                             </div>
                         </div>
                     )}

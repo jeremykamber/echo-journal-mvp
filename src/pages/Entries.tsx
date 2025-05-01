@@ -1,15 +1,13 @@
 import React from 'react';
 import useJournalStore from '@/store/journalStore';
 import JournalEntryCard from '@/components/JournalEntryCard';
-import AppHeader from '../components/AppHeader';
 
 export const Entries: React.FC = () => {
   const entries = useJournalStore((state) => state.entries);
 
   return (
     <>
-      <AppHeader center={<span className="text-2xl font-bold">All Journal Entries</span>} />
-      <div className="px-4 py-8 max-w-5xl mx-auto w-full">
+      <div className="px-4 py-8 mx-auto">
         {entries.length === 0 ? (
           <div className="text-muted-foreground text-center py-12 text-lg">No journal entries yet.</div>
         ) : (

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -20,19 +20,32 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
     onClose,
     className
 }) => {
-    // Handle successful import completion
+    const [error, setError] = useState<string | null>(null);
+
+    // Handle successful or failed import completion
     const handleImportComplete = ({ successful, skipped, failed }: {
         successful: number;
         skipped: number;
-        failed: number
+        failed: number;
     }) => {
-        // Auto-close after a successful import if there were no issues
+        if (failed > 0) {
+            setError(`Failed to import ${failed} file(s). Unsupported file types or errors may have occurred.`);
+        } else {
+            setError(null);
+        }
+
         if (successful > 0 && failed === 0 && skipped === 0) {
             setTimeout(() => {
                 onClose();
-            }, 2000); // Give the user time to see the success message
+            }, 2000);
         }
     };
+
+    // Handle errors thrown during the import process
+    const handleImportError = (error: Error) => {
+        setError(error.message);
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
             <DialogContent className={cn("bg-card border border-border rounded-lg shadow-xl w-full max-w-xl max-h-[80vh] overflow-auto p-0", className)}>
@@ -50,7 +63,15 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
                     </DialogClose>
                 </DialogHeader>
                 <div className="p-6">
-                    <DocumentImporter onComplete={handleImportComplete} />
+                    {error && (
+                        <div className="mb-4 p-4 bg-destructive text-destructive-foreground rounded-lg border border-destructive">
+                            <p className="text-sm">{error}</p>
+                        </div>
+                    )}
+                    <DocumentImporter
+                        onComplete={handleImportComplete}
+                        onError={handleImportError} // Pass error handler to DocumentImporter
+                    />
                     <div className="mt-8 border-t border-border pt-4">
                         <h3 className="text-sm font-medium mb-2">Import Tips</h3>
                         <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">

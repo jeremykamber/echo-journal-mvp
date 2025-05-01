@@ -25,9 +25,9 @@ const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry }) => {
         <DeleteEntryButton entryId={entry.id} />
       </div>
       <Link to={`/entry/${entry.id}`} className="block px-4 py-3">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex justify-start items-center gap-2 mb-1">
           <span className="h-2 w-2 rounded-full bg-primary/70 group-hover:bg-primary transition-colors" />
-          <h2 className="text-lg font-semibold text-card-foreground group-hover:text-primary transition-colors line-clamp-1">
+          <h2 className="w-[80%] text-lg font-semibold text-card-foreground group-hover:text-primary transition-colors line-clamp-1">
             {entry.title}
           </h2>
         </div>

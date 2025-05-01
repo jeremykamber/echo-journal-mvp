@@ -16,6 +16,7 @@ interface ImportStats {
 
 interface DocumentImporterProps {
     onComplete?: (stats: Omit<ImportStats, 'inProgress'>) => void;
+    onError?: (error: Error) => void; // Add onError prop
     className?: string;
 }
 
@@ -27,6 +28,7 @@ interface CustomInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export const DocumentImporter: React.FC<DocumentImporterProps> = ({
     onComplete,
+    onError, // Destructure onError prop
     className,
 }) => {
     const [isDragging, setIsDragging] = useState(false);
@@ -99,13 +101,16 @@ export const DocumentImporter: React.FC<DocumentImporterProps> = ({
             }
         } catch (error) {
             console.error('Error importing files:', error);
-            setImportStats({
-                successful: 0,
-                failed: files.length,
-                skipped: 0,
+            // Update stats to reflect failure, but don't show success state
+            setImportStats(prev => ({
+                ...prev, // Keep previous successful/skipped if any partial success occurred before error
+                failed: prev.failed + (files?.length || 0) - prev.successful - prev.skipped, // Estimate failed based on total files
                 inProgress: false
-            });
-            setShowStats(true);
+            }));
+            // setShowStats(true); // REMOVED: Do not show success state on error
+            if (onError && error instanceof Error) { // Call onError if provided
+                onError(error);
+            }
         }
     };
 
@@ -139,13 +144,16 @@ export const DocumentImporter: React.FC<DocumentImporterProps> = ({
             }
         } catch (error) {
             console.error('Error handling drop:', error);
-            setImportStats({
-                successful: 0,
-                failed: e.dataTransfer.files?.length || 0,
-                skipped: 0,
+            // Update stats to reflect failure, but don't show success state
+            setImportStats(prev => ({
+                ...prev,
+                failed: prev.failed + (e.dataTransfer.files?.length || 0) - prev.successful - prev.skipped, // Estimate failed
                 inProgress: false
-            });
-            setShowStats(true);
+            }));
+            // setShowStats(true); // REMOVED: Do not show success state on error
+            if (onError && error instanceof Error) { // Call onError if provided
+                onError(error);
+            }
         }
     };
 

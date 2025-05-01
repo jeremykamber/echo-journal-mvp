@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Home, Settings, MessageSquare, Notebook } from "lucide-react"
+import { Home, Settings, MessageSquare } from "lucide-react"
 import useJournalStore from "@/store/journalStore"
 import useConversationStore, { Conversation } from "@/store/conversationStore"
 import AnimatedButton from "@/components/AnimatedButton"
@@ -43,11 +43,6 @@ const data: { navMain: NavGroup[] } = {
           title: "Home",
           url: "/",
           icon: <Home className="h-4 w-4 mr-2" />,
-        },
-        {
-          title: "Entries",
-          url: "/entries",
-          icon: <Notebook className="h-4 w-4 mr-2" />,
         },
         {
           title: "Settings",
