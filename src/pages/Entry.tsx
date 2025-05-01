@@ -1,47 +1,86 @@
 import React, { useState, useEffect } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import AppHeader from '../components/AppHeader';
-import { useParams, Link } from 'react-router-dom';
-import useJournalStore from '@/store/journalStore';
+import { useParams } from 'react-router-dom';
+import useJournalStore, { JournalState } from '@/store/journalStore';
 import ChatPanel from '@/components/ChatPanel';
+import { ChatInput } from '@/components/ChatInput'; // Import ChatInput
 import { cn } from '@/lib/utils';
 import { Pencil as PencilIcon, Check as CheckIcon, X as XIcon } from 'lucide-react';
 import DeleteEntryButton from '@/components/DeleteEntryButton';
+import { useAI } from '@/context/AIContext'; // Import useAI
+
+const GLOBAL_THREAD_ID = 'global-chat'; // Define global thread ID
 
 const Entry: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const entry = useJournalStore((state) => id ? state.getEntryById(id) : undefined);
     const updateEntry = useJournalStore((state) => state.updateEntry);
     const updateEntryTitle = useJournalStore((state) => state.updateEntryTitle);
+    const createThreadForEntry = useJournalStore((state: JournalState) => state.createThreadForEntry);
+    const setActiveThreadId = useJournalStore((state: JournalState) => state.setActiveThreadId);
+    const getEntryById = useJournalStore((state: JournalState) => state.getEntryById); // Keep this if needed elsewhere
+
     const [hasStartedEditing, setHasStartedEditing] = useState(false);
+    // Removed entryFocused state
+    // Removed chatInputFocused state
+    const [isChatExpanded, setIsChatExpanded] = useState(false); // New state for chat visibility
+    const [chatInput, setChatInput] = useState(''); // State for chat input value
+    const [threadId, setThreadId] = useState<string>(GLOBAL_THREAD_ID); // State for thread ID
+
+    const isMobile = useIsMobile();
+    const { sendMessageToAI } = useAI(); // Get send message function
 
     // State for title editing
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleValue, setTitleValue] = useState('');
 
-    // Store initial content when component mounts
+    // Effect to set threadId based on entry
+    useEffect(() => {
+        if (!id) {
+            setThreadId(GLOBAL_THREAD_ID);
+            setActiveThreadId(GLOBAL_THREAD_ID);
+            return;
+        }
+        const currentEntry = getEntryById(id);
+        if (currentEntry) {
+            if (currentEntry.chatId) {
+                setThreadId(currentEntry.chatId);
+                setActiveThreadId(currentEntry.chatId);
+            } else {
+                const newThreadId = createThreadForEntry(id);
+                setThreadId(newThreadId);
+                setActiveThreadId(newThreadId);
+            }
+        }
+    }, [id, getEntryById, createThreadForEntry, setActiveThreadId]);
+
+    // Effect for title value
     useEffect(() => {
         if (entry) {
             setTitleValue(entry.title);
         }
-    }, [entry?.id]); // Only reset when entry ID changes
+    }, [entry?.id]);
+
+    // Handle sending chat message
+    const handleSend = async () => {
+        if (!chatInput.trim()) return;
+        const userText = chatInput;
+        setChatInput('');
+        await sendMessageToAI(userText, threadId, {
+            targetType: 'journal',
+            entryId: id,
+        });
+    };
 
     if (!entry || !id) {
         return <div className="p-4">Entry not found.</div>;
     }
+
     return (
-        <>
+        // Use h-screen and flex-col to manage height
+        <div className="flex flex-col h-screen">
             <AppHeader
-                left={
-                    <Link
-                        to="/entries"
-                        className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-primary transition-colors p-2 -ml-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-left">
-                            <path d="m15 18-6-6 6-6" />
-                        </svg>
-                        Back to Entries
-                    </Link>
-                }
                 center={
                     isEditingTitle ? (
                         <div className="flex items-center w-full">
@@ -110,11 +149,11 @@ const Entry: React.FC = () => {
                 }
                 right={<DeleteEntryButton entryId={id} redirectToHome={true} />}
             />
-            <div className="flex flex-col h-screen md:flex-row">
-                {/* Main Entry Area */}
-                <div className="flex-1 min-w-0 p-4 md:p-8 overflow-y-auto bg-background flex flex-col">
+            {/* Main content area: flex-1 to take remaining space, min-h-0 for flex child */}
+            <div className="flex-1 flex flex-col md:flex-row min-h-0">
+                {/* Journal Area: flex-1, overflow */}
+                <div className="flex-1 min-w-0 px-4 pt-6 overflow-y-auto bg-background flex flex-col">
                     <div className="flex flex-col flex-1 min-h-0 space-y-4">
-                        {/* Minimal Text Box */}
                         <textarea
                             value={entry.content}
                             onChange={(e) => {
@@ -124,24 +163,70 @@ const Entry: React.FC = () => {
                                 }
                             }}
                             className={cn(
-                                "w-full h-full bg-transparent text-base resize-none flex-1 min-h-0",
+                                "w-full h-full bg-transparent text-base resize-none flex-1 min-h-0 transition-all duration-300",
                                 "focus:outline-none",
-                                "placeholder:text-muted-foreground/50"
+                                "placeholder:text-muted-foreground/50",
+                                // Add padding-bottom on mobile when chat is NOT expanded to make space for fixed input
+                                isMobile && !isChatExpanded && "pb-20" // Adjust value as needed
                             )}
                             placeholder="Write your entry here..."
                             style={{ minHeight: 0 }}
+                            onFocus={() => setIsChatExpanded(false)} // Minimize chat on journal focus
+                        // Removed onBlur handler for entryFocused
                         />
-                        {/* RealtimeReflection removed: now handled in chat */}
                     </div>
                 </div>
-                {/* Chat Panel */}
+
+                {/* Chat Container (Mobile: fixed bottom, Desktop: flex item) */}
                 <div
-                    className="w-full md:w-[350px] md:max-w-sm border-t md:border-t-0 md:border-l border-border bg-muted/10 flex flex-col h-[400px] md:h-full shrink-0"
+                    className={cn(
+                        "md:border-l border-border",
+                        "md:relative md:w-[40%] md:flex md:flex-col md:h-full md:shrink-0", // Desktop styles
+                        isMobile ? "fixed bottom-0 left-0 right-0 z-10 flex flex-col" : "", // Mobile styles: fixed, flex-col
+                        isChatExpanded ? "bg-background" : "", // Gradient background
+                        isMobile && "mb-[-20px] pb-[20px]", // Extend gradient past the input area on mobile by using negative margin
+                    )}
                 >
-                    <ChatPanel entryId={entry.id} hasStartedEditing={hasStartedEditing} />
+                    {/* Chat Panel Content (Mobile: Conditional display/height/background) */}
+                    <div className={cn(
+                        "flex flex-5 flex-col flex overflow-hidden transition-all duration-300 ease-in-out mx-6",
+                        // Mobile specific styles
+                        isMobile && !isChatExpanded && "hidden", // Use hidden to remove from layout
+                        isMobile && isChatExpanded && "h-[400px] max-h-[60vh] bg-background mx-6", // Set height and solid background when expanded
+                        // Desktop styles
+                        !isMobile && "h-full" // Desktop: always full height within container
+                    )}>
+                        <ChatPanel
+                            entryId={entry.id}
+                            hasStartedEditing={hasStartedEditing}
+                            threadId={threadId} // Pass threadId
+                        />
+
+                    </div>
+
+                    {/* Chat Input Wrapper (Handles padding and background) */}
+                    <div
+                        className={cn(
+                            "flex-shrink-0",
+                            isChatExpanded ? "mb-8 mx-3" : "pb-8 px-3",
+                            isMobile && !isChatExpanded ? "bg-gradient-to-b from-transparent to-muted-foreground/60 dark:to-black/80" : ""
+                        )}
+                    >
+                        <ChatInput
+                            value={chatInput}
+                            onChange={setChatInput}
+
+                            onSend={handleSend}
+                            placeholder="Chat with Echo..."
+                            onFocus={() => isMobile ? setIsChatExpanded(true) : null} // Expand on focus
+                            // Removed onBlur handler for chatInputFocused
+                            isExpanded={isChatExpanded} // Pass expanded state
+                            onMinimize={() => setIsChatExpanded(false)} // Pass minimize handler
+                        />
+                    </div>
                 </div>
             </div>
-        </>
+        </div>
     );
 };
 

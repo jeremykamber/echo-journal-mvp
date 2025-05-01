@@ -20,6 +20,7 @@ const AIChatScreen: React.FC = () => {
     const navigate = useNavigate();
     const { id: routeConvId } = useParams<{ id: string }>();
     const entries = useJournalStore(state => state.entries);
+    const createEntry = useJournalStore(state => state.createEntry);
     const createConversation = useConversationStore(state => state.createConversation);
     const deleteConversation = useConversationStore(state => state.deleteConversation);
     const getMessagesForConversation = useConversationStore(state => state.getMessagesForConversation);
@@ -248,8 +249,8 @@ const AIChatScreen: React.FC = () => {
                                 <div className="w-full mb-8 flex flex-wrap justify-center gap-4">
                                     <Button
                                         onClick={() => {
-                                            const newEntryId = createConversation(null);
-                                            navigate(`/conversation/${newEntryId}`);
+                                            const newEntryId = createEntry();
+                                            navigate(`/entry/${newEntryId}`);
                                         }}
                                         className={cn(
                                             "flex items-center gap-2 text-md py-6 px-6 shadow-md",

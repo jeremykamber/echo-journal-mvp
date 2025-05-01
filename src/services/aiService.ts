@@ -19,7 +19,7 @@ export interface RealtimeReflectionResponse {
 }
 
 const llm = new ChatOpenAI({
-  model: 'gpt-4.1-nano',
+  model: 'gpt-4.1-mini',
   temperature: 0.5,
   streaming: true,
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
@@ -157,7 +157,7 @@ export async function* streamRealtimeReflection(
 
 Provide ONLY the reflection text with no preamble or explanation. Ensure your output is beautiful and easy to read, and written in markdown. Don't add the code block for markdown, just write your output in markdown; I'll parse the output on my own and show it to the user as markdown.
 
-The user is currently writing this journal entry:
+The user is currently writing this journal entry (with id ${entryId}):
 """
 {currentContent}
 """
@@ -257,7 +257,7 @@ export async function* reflectRAG(question: string, conversationId: string, entr
       WRITING GUIDELINES: \n
       1. Your reflection should be thought - provoking, and sharp.Support them emotionally, but also ensure you give them the brutal honest truth because it's for their best interests, don't sugarcoat things.\n
       2. Focus on one of these aspects based on what's most relevant:\n
-    - Patterns or themes you notice between the journal entry the user is currently writing(provided in the beginning of this prompt) and past / future entries\n
+    - Patterns or themes you notice between the journal entry the user is currently writing (provided at the bottom of this prompt) and past / future entries\n
     - Growth or change you observe compared to similar past situations\n
     - Questions that might deepen their self - reflection\n
     - Gentle prompts for areas they could explore further in their writing\n\n
@@ -275,7 +275,7 @@ export async function* reflectRAG(question: string, conversationId: string, entr
         - "This reminds me of your thoughts on... [cite:entry-101283108-saosdna]"\n
   9. Make sure citations are inline and integrated naturally into your reflection\n
   10. Try your best to connect the dots across MULTIPLE entries, not just one.\n\n
-      This is the user's current journal entry: \n{currentEntryContent}\n\n
+      The user is currently writing this journal entry (with id ${entryId}): \n{currentEntryContent}\n\n
       Recent chat history: \n{chatHistory}\n\n
       Here are some relevant past journal entries: \n{context}\n\n
       Respond to the user's message in a way that is empathetic, insightful, and references past entries where appropriate.\n

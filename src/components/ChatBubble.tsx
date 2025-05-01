@@ -17,25 +17,31 @@ interface ChatBubbleProps {
 
 export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, children }) => {
     const [copied, setCopied] = React.useState(false);
+    const [copyFailed, setCopyFailed] = React.useState(false);
     const isAI = message.sender === 'ai';
+
     const handleCopy = async () => {
         try {
             await navigator.clipboard.writeText(message.text);
             setCopied(true);
+            setCopyFailed(false);
             setTimeout(() => setCopied(false), 1200);
         } catch (e) {
-            setCopied(false);
+            console.error('Failed to copy text: ', e);
+            setCopyFailed(true);
+            setTimeout(() => setCopyFailed(false), 1200);
         }
     };
+
     return (
         <div
             className={cn(
-                'p-4 rounded-lg whitespace-pre-line',
+                'group p-4 rounded-lg whitespace-pre-line',
                 'text-sm shadow-md',
                 isAI
                     ? 'text-muted-foreground self-start shadow-primary-foreground/30 max-w-full'
-                    : 'bg-primary text-primary-foreground self-end  shadow-primary/30 max-w-md',
-            message.isRealtimeReflection && 'border-2 border-primary/60 bg-primary/5 relative'
+                    : 'bg-primary text-primary-foreground self-end shadow-primary/30 max-w-md',
+                message.isRealtimeReflection && 'border-2 border-primary/60 bg-primary/5 relative'
             )}
         >
             {message.isRealtimeReflection && (
@@ -56,17 +62,38 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, children }) => 
                     <button
                         onClick={handleCopy}
                         className={cn(
-                            'flex items-center gap-1 px-2 py-1 rounded-md text-xs border border-border/60 bg-background hover:bg-muted transition',
-                            copied ? 'text-primary border-primary' : 'text-muted-foreground'
+                            'flex items-center gap-1 px-2 py-1 rounded-md text-xs border transition-all duration-300 ease opacity-0 group-hover:opacity-100',
+                            copied
+                                ? 'text-primary border-primary bg-background'
+                                : copyFailed
+                                    ? 'text-red-600 border-red-600 bg-red-100'
+                                    : 'text-muted-foreground border-border/60 bg-background hover:bg-muted'
                         )}
                         title="Copy AI output"
                     >
                         {copied ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Copied!
+                            </>
+                        ) : copyFailed ? (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Failed!
+                            </>
                         ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><rect x="3" y="3" width="13" height="13" rx="2" /></svg>
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                                    <rect x="3" y="3" width="13" height="13" rx="2" />
+                                </svg>
+                                Copy
+                            </>
                         )}
-                        {copied ? 'Copied!' : 'Copy'}
                     </button>
                 </div>
             )}

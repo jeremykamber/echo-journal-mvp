@@ -33,7 +33,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 {left && <div className="flex items-center min-w-0">{left}</div>}
             </div>
             {center && (
-                <div className="flex-1 flex justify-center min-w-0 px-2">
+                <div className="flex-4 flex justify-center min-w-0 px-2">
                     <div className="truncate text-center max-w-full flex items-center">
                         {center}
                     </div>
