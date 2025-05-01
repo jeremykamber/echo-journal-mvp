@@ -3,7 +3,7 @@ import AppHeader from './AppHeader';
 import { useNavigate, useParams } from 'react-router-dom';
 import useJournalStore from '@/store/journalStore';
 import useConversationStore from '@/store/conversationStore';
-import JournalEntryCard from '@/components/JournalEntryCard';
+
 import { ChatBubble } from '@/components/ChatBubble';
 import { ChatInput } from '@/components/ChatInput';
 import { useAI } from '@/context/AIContext';
@@ -20,7 +20,7 @@ import Entries from '@/pages/Entries';
 const AIChatScreen: React.FC = () => {
     const navigate = useNavigate();
     const { id: routeConvId } = useParams<{ id: string }>();
-    const entries = useJournalStore(state => state.entries);
+
     const createEntry = useJournalStore(state => state.createEntry);
     const createConversation = useConversationStore(state => state.createConversation);
     const deleteConversation = useConversationStore(state => state.deleteConversation);

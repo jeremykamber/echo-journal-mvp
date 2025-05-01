@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { Pencil as PencilIcon, Check as CheckIcon, X as XIcon } from 'lucide-react';
 import DeleteEntryButton from '@/components/DeleteEntryButton';
 import { useAI } from '@/context/AIContext'; // Import useAI
-import ReactMarkdown from 'react-markdown';
+
 
 const GLOBAL_THREAD_ID = 'global-chat'; // Define global thread ID
 
