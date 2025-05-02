@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom'; // Import useLocation
+import ReactGA from 'react-ga4'; // Import ReactGA
 import { useSettingsStore } from '@/store/settingsStore';
 function ThemeEffect() {
   const theme = useSettingsStore((s) => s.theme);
@@ -28,12 +30,29 @@ import AIChatScreen from '@/components/AIChatScreen';
 import SettingsScreen from './pages/Settings';
 import Entries from './pages/Entries';
 
+// Helper component to track page views
+function TrackPageViews() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const gaMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
+    if (gaMeasurementId) {
+      ReactGA.send({ hitType: "pageview", page: location.pathname + location.search });
+      console.log(`GA4 Pageview tracked: ${location.pathname + location.search}`);
+    }
+  }, [location]);
+
+  return null;
+}
+
+
 function App() {
   return (
     <Router>
       <AIProvider>
         <SidebarProvider>
           <ThemeEffect />
+          <TrackPageViews /> {/* Add page view tracker */}
           <AppSidebar />
           <SidebarInset>
             <Routes>

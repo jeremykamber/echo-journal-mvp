@@ -4,6 +4,7 @@ import useJournalStore from '@/store/journalStore';
 import useConversationStore from '@/store/conversationStore';
 import { reflectRAGWithStreaming } from '@/services/aiService';
 import { useNavigate } from 'react-router-dom'; // Import the useNavigate hook
+import { trackSendMessage } from '@/services/analyticsService';
 
 interface AIContextValue {
   sendMessageToAI: (
@@ -35,9 +36,12 @@ export const AIProvider = ({ children }: { children: ReactNode }) => {
     console.log('sendMessageToAI called with:', { input, threadId, options, navigateTo });
 
     if (!input.trim()) {
-      console.warn('Input is empty or whitespace only.');
+      console.warn('Attempted to send empty message');
       return;
     }
+
+    // Track the event before sending
+    trackSendMessage();
 
     // Optional: Perform the navigation before streaming to ensure DOM updates
     if (navigateTo) {

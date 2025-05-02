@@ -4,7 +4,7 @@ import { Upload, File, FolderUp, AlertCircle, CheckCircle, X, Loader2 } from 'lu
 import { cn } from '@/lib/utils';
 import AnimatedButton from '@/components/AnimatedButton';
 import { documentImportService } from '@/services/documentImportService';
-import { isSupportedDocumentType } from '@/lib/documentUtils';
+import { trackImportDocument, trackEvent } from '@/services/analyticsService';
 import useJournalStore from '@/store/journalStore';
 
 interface ImportStats {
@@ -77,41 +77,50 @@ export const DocumentImporter: React.FC<DocumentImporterProps> = ({
         if (!files || files.length === 0) return;
 
         resetStats();
-        setImportStats(prev => ({ ...prev, inProgress: true }));
+        // Capture initial state for stats update later
+        let currentSuccessful = 0;
+        let currentFailed = 0;
+        let currentSkipped = 0;
+        setImportStats({ successful: 0, failed: 0, skipped: 0, inProgress: true });
+        setShowStats(true);
 
-        try {
-            // Convert FileList to array for easier processing
-            const fileArray = Array.from(files);
-
-            // Filter to only include supported file types
-            const supportedFiles = fileArray.filter(isSupportedDocumentType);
-
-            // Import the files
-            const result = await documentImportService.importFiles(supportedFiles);
-
-            setImportStats({
-                ...result,
-                inProgress: false
-            });
-
-            setShowStats(true);
-
-            if (onComplete) {
-                onComplete(result);
+        const importPromises = Array.from(files).map(async (file) => {
+            try {
+                const processor = documentImportService.getProcessorForFile(file);
+                if (!processor) {
+                    currentSkipped++;
+                    return;
+                }
+                const entryData = await processor.processFile(file);
+                if (entryData) {
+                    // Use createEntryWithData instead of createEntry
+                    useJournalStore.getState().createEntryWithData(entryData.title, entryData.content, entryData.date);
+                    trackImportDocument(processor.extension); // Track successful import by type
+                    currentSuccessful++;
+                } else {
+                    currentFailed++;
+                }
+            } catch (err) {
+                console.error(`Failed to process file ${file.name}:`, err);
+                currentFailed++;
+                if (onError) {
+                    onError(err instanceof Error ? err : new Error('File processing failed'));
+                }
             }
-        } catch (error) {
-            console.error('Error importing files:', error);
-            // Update stats to reflect failure, but don't show success state
-            setImportStats(prev => ({
-                ...prev, // Keep previous successful/skipped if any partial success occurred before error
-                failed: prev.failed + (files?.length || 0) - prev.successful - prev.skipped, // Estimate failed based on total files
-                inProgress: false
-            }));
-            // setShowStats(true); // REMOVED: Do not show success state on error
-            if (onError && error instanceof Error) { // Call onError if provided
-                onError(error);
-            }
+        });
+
+        await Promise.all(importPromises);
+
+        // Update stats state *after* processing is complete
+        setImportStats({ successful: currentSuccessful, failed: currentFailed, skipped: currentSkipped, inProgress: false });
+
+        if (onComplete) {
+            // Use final stats
+            onComplete({ successful: currentSuccessful, failed: currentFailed, skipped: currentSkipped });
         }
+
+        // Optionally hide stats after a delay if needed
+        // setTimeout(() => setShowStats(false), 5000);
     };
 
     const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
@@ -133,6 +142,11 @@ export const DocumentImporter: React.FC<DocumentImporterProps> = ({
                     inProgress: false
                 });
 
+                // Track successful folder import completion
+                if (result.successful > 0) {
+                    trackEvent('Journal', 'ImportFolderComplete', `Success: ${result.successful}, Skipped: ${result.skipped}, Failed: ${result.failed}`);
+                }
+
                 setShowStats(true);
 
                 if (onComplete) {
@@ -141,6 +155,7 @@ export const DocumentImporter: React.FC<DocumentImporterProps> = ({
             } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                 // Handle file drop
                 await handleFilesSelected(e.dataTransfer.files);
+                // Note: Individual file tracking (trackImportDocument) happens within handleFilesSelected
             }
         } catch (error) {
             console.error('Error handling drop:', error);

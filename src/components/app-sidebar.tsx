@@ -17,6 +17,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { trackCreateEntry } from '@/services/analyticsService';
 
 // Define types for our navigation structure
 interface NavItem {
@@ -72,6 +73,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Function to create a new journal entry and navigate to it
   const handleCreateNewEntry = () => {
     const newEntryId = createEntry()
+    trackCreateEntry(); // Track new entry creation
     navigate(`/entry/${newEntryId}`)
   }
 

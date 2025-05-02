@@ -2,6 +2,7 @@ import React from 'react';
 import useConversationStore from '@/store/conversationStore';
 import { ChatInput } from '@/components/ChatInput';
 import { useAI } from '@/context/AIContext';
+import { trackSendMessage, trackNewConversation } from '@/services/analyticsService';
 
 interface PromptBarProps {
     className?: string;
@@ -22,7 +23,9 @@ const PromptBar: React.FC<PromptBarProps> = ({
     const handleSend = async () => {
         if (!input.trim()) return;
         const conversationId = createConversation(input.trim());
+        trackNewConversation(); // Track new conversation started via prompt bar
         await sendMessageToAI(input.trim(), conversationId, {}, `/conversation/${conversationId}`); // Pass navigateTo here
+        trackSendMessage(); // Track message sent via prompt bar
         setInput('');
     };
 

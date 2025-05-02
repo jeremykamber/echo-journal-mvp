@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 import useConversationStore from '@/store/conversationStore';
 import { cn } from '@/lib/utils';
 import DeleteConversationDialog from './DeleteConversationDialog'; // Import the new dialog
+import { trackDeleteConversation } from '@/services/analyticsService';
 
 interface DeleteConversationButtonProps {
     conversationId: string;
@@ -24,6 +25,7 @@ export const DeleteConversationButton: React.FC<DeleteConversationButtonProps> =
 
     const handleConfirmDelete = () => {
         deleteConversation(conversationId);
+        trackDeleteConversation(); // Track conversation deletion
         setIsDialogOpen(false);
         if (onDelete) onDelete();
     };

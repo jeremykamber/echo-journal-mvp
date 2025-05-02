@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import useJournalStore from '@/store/journalStore';
 import { cn } from '@/lib/utils';
 import DeleteEntryDialog from './DeleteEntryDialog'; // Import the new dialog
+import { trackDeleteEntry } from '@/services/analyticsService';
 
 interface DeleteEntryButtonProps {
     entryId: string;
@@ -29,6 +30,7 @@ export const DeleteEntryButton: React.FC<DeleteEntryButtonProps> = ({
 
     const handleConfirmDelete = () => {
         deleteEntry(entryId);
+        trackDeleteEntry(); // Track entry deletion
         setIsDialogOpen(false);
         if (redirectToHome) {
             navigate('/');

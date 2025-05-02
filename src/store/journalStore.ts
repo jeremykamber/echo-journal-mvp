@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid'; // Import and alias uuid
+import {
+    trackCreateEntry,
+    trackDeleteEntry,
+    trackSendMessage,
+    trackEvent, // Import generic trackEvent
+} from '@/services/analyticsService';
 
 export interface JournalEntry {
     id: string;
@@ -72,6 +78,12 @@ const useJournalStore = create<JournalState>()(
                         },
                     ],
                 }));
+                // Track user messages and AI reflections
+                if (sender === 'user') {
+                    trackSendMessage();
+                } else if (isRealtimeReflection) {
+                    trackEvent('AI', 'AddRealtimeReflection', threadId); // Track reflection addition
+                }
                 return messageId; // Return the generated message ID
             },
             updateEntry: (id, content) =>
@@ -98,6 +110,7 @@ const useJournalStore = create<JournalState>()(
                     date: new Date().toISOString(),
                 };
                 set((state) => ({ entries: [...state.entries, newEntry] }));
+                trackCreateEntry(); // Track entry creation
                 return id;
             },
             deleteEntry: (id) => {
@@ -115,6 +128,7 @@ const useJournalStore = create<JournalState>()(
                         ? { activeThreadId: GLOBAL_THREAD_ID }
                         : {}),
                 }));
+                trackDeleteEntry(); // Track entry deletion
             },
             createEntryWithData: (title, content, date) => {
                 const id = `entry-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -125,10 +139,13 @@ const useJournalStore = create<JournalState>()(
                     date: date || new Date().toISOString(),
                 };
                 set((state) => ({ entries: [...state.entries, newEntry] }));
+                // Note: Tracking for imports is handled in DocumentImporter via trackImportDocument
+                // If created manually via this function elsewhere, consider adding trackCreateEntry() here too.
                 return id;
             },
             bulkImportEntries: (newEntries) => {
                 const ids: string[] = [];
+                let importedCount = 0; // Keep track of count for analytics
 
                 set((state) => {
                     const importedEntries = newEntries.map((entry) => {
@@ -139,9 +156,14 @@ const useJournalStore = create<JournalState>()(
                             id,
                         };
                     });
-
+                    importedCount = importedEntries.length; // Store count
                     return { entries: [...state.entries, ...importedEntries] };
                 });
+
+                // Track bulk import completion
+                if (importedCount > 0) {
+                    trackEvent('Journal', 'BulkImportComplete', `Count: ${importedCount}`);
+                }
 
                 return ids;
             },

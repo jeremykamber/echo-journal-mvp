@@ -1,14 +1,21 @@
 import React from 'react';
-import { useSettingsStore } from '@/store/settingsStore';
+import { useSettingsStore, AppSettings } from '@/store/settingsStore'; // Import AppSettings
+import { trackSettingsChange } from '@/services/analyticsService';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import AppHeader from '@/components/AppHeader';
 
 const SettingsScreen: React.FC = () => {
     const settings = useSettingsStore();
     const setSetting = useSettingsStore((s) => s.setSetting);
+
+    const handleSettingChange = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+        setSetting(key, value);
+        // Ensure the key is treated as a string for analytics
+        trackSettingsChange(String(key)); // Track setting change
+    };
 
     React.useEffect(() => {
         const root = document.documentElement;
@@ -40,30 +47,28 @@ const SettingsScreen: React.FC = () => {
                             max={0.99}
                             step={0.01}
                             value={settings.reflectionSimilarityThreshold}
-                            onChange={e => setSetting('reflectionSimilarityThreshold', parseFloat(e.target.value))}
+                            onChange={e => handleSettingChange('reflectionSimilarityThreshold', parseFloat(e.target.value))}
                         />
-                        <p className="text-xs text-muted-foreground mt-1">Controls how different new content must be to trigger a new reflection (lower = more tolerant).</p>
                     </div>
                     <div>
-                        <Label htmlFor="reflectionMinLength" className="mb-1">Reflection Minimum Length</Label>
+                        <Label htmlFor="reflectionMinLength">Reflection Min Length</Label>
                         <Input
                             id="reflectionMinLength"
                             type="number"
                             min={10}
                             max={200}
-                            step={1}
+                            step={5}
                             value={settings.reflectionMinLength}
-                            onChange={e => setSetting('reflectionMinLength', parseInt(e.target.value))}
+                            onChange={e => handleSettingChange('reflectionMinLength', parseInt(e.target.value, 10))}
                         />
-                        <p className="text-xs text-muted-foreground mt-1">Minimum number of characters for new content to trigger a reflection.</p>
                     </div>
                     <div>
-                        <Label htmlFor="theme" className="mb-1">Theme</Label>
+                        <Label htmlFor="theme">Theme</Label>
                         <Select
                             value={settings.theme}
-                            onValueChange={(value) => setSetting('theme', value as 'system' | 'light' | 'dark')}
+                            onValueChange={(value: AppSettings['theme']) => handleSettingChange('theme', value)}
                         >
-                            <SelectTrigger className="w-full" id="theme">
+                            <SelectTrigger id="theme">
                                 <SelectValue placeholder="Select theme" />
                             </SelectTrigger>
                             <SelectContent>
@@ -73,13 +78,13 @@ const SettingsScreen: React.FC = () => {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center space-x-2">
                         <Checkbox
                             id="showReflectionLabels"
                             checked={settings.showReflectionLabels}
-                            onCheckedChange={(checked: boolean | "indeterminate") => setSetting('showReflectionLabels', Boolean(checked))}
+                            onCheckedChange={(checked) => handleSettingChange('showReflectionLabels', !!checked)}
                         />
-                        <Label htmlFor="showReflectionLabels">Show Reflection Labels in Chat</Label>
+                        <Label htmlFor="showReflectionLabels">Show Reflection Labels</Label>
                     </div>
                 </div>
             </div>
