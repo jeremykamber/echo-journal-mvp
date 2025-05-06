@@ -34,12 +34,16 @@ const SettingsScreen: React.FC = () => {
 
     return (
         <div>
-            <AppHeader center={<span className="text-2xl font-bold">Settings</span>}
-            />
+            <AppHeader center={<span className="text-2xl font-bold">Settings</span>} />
             <div className="max-w-xl mx-auto p-8">
-                <div className="space-y-6">
-                    <div>
-                        <Label htmlFor="reflectionSimilarityThreshold" className="mb-1">Reflection Similarity Threshold</Label>
+                <div className="space-y-8"> {/* Increased spacing between sections */}
+                    <div className="space-y-2"> {/* Added spacing within each section */}
+                        <Label htmlFor="reflectionSimilarityThreshold" className="mb-1">
+                            Reflection Similarity Threshold
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                            Adjust the threshold for how similar reflections need to be to be considered related. Higher = stricter.
+                        </p>
                         <Input
                             id="reflectionSimilarityThreshold"
                             type="number"
@@ -47,11 +51,14 @@ const SettingsScreen: React.FC = () => {
                             max={0.99}
                             step={0.01}
                             value={settings.reflectionSimilarityThreshold}
-                            onChange={e => handleSettingChange('reflectionSimilarityThreshold', parseFloat(e.target.value))}
+                            onChange={(e) => handleSettingChange('reflectionSimilarityThreshold', parseFloat(e.target.value))}
                         />
                     </div>
-                    <div>
+                    <div className="space-y-2">
                         <Label htmlFor="reflectionMinLength">Reflection Min Length</Label>
+                        <p className="text-sm text-muted-foreground">
+                            Set the minimum journal entry length (in characters) for realtime reflections. Shorter entries may yield less insight.
+                        </p>
                         <Input
                             id="reflectionMinLength"
                             type="number"
@@ -59,11 +66,14 @@ const SettingsScreen: React.FC = () => {
                             max={200}
                             step={5}
                             value={settings.reflectionMinLength}
-                            onChange={e => handleSettingChange('reflectionMinLength', parseInt(e.target.value, 10))}
+                            onChange={(e) => handleSettingChange('reflectionMinLength', parseInt(e.target.value, 10))}
                         />
                     </div>
-                    <div>
+                    <div className="space-y-2">
                         <Label htmlFor="theme">Theme</Label>
+                        <p className="text-sm text-muted-foreground">
+                            Choose the app's theme: system default, light, or dark mode.
+                        </p>
                         <Select
                             value={settings.theme}
                             onValueChange={(value: AppSettings['theme']) => handleSettingChange('theme', value)}
@@ -78,19 +88,22 @@ const SettingsScreen: React.FC = () => {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-start space-x-4"> {/* Added spacing between checkbox and label */}
                         <Checkbox
                             id="showReflectionLabels"
                             checked={settings.showReflectionLabels}
                             onCheckedChange={(checked) => handleSettingChange('showReflectionLabels', !!checked)}
                         />
-                        <Label htmlFor="showReflectionLabels">Show Reflection Labels</Label>
+                        <div className="space-y-1">
+                            <Label htmlFor="showReflectionLabels">Show Reflection Labels</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Toggle whether labels are displayed for reflections.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-
-
     );
 };
 

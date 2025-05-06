@@ -158,6 +158,10 @@
     @apply bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent;
   }
 
+  .link {
+    @apply text-primary hover:text-primary-900 transition-colors duration-200 ease-in-out;
+  }
+
 }
 
 @layer base {

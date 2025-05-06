@@ -9,12 +9,17 @@ import { cn } from '@/lib/utils';
 import { Pencil as PencilIcon, Check as CheckIcon, X as XIcon } from 'lucide-react';
 import DeleteEntryButton from '@/components/DeleteEntryButton';
 import { useAI } from '@/context/AIContext'; // Import useAI
+import { Card, CardContent } from '@/components/ui/card';
 
 
 const GLOBAL_THREAD_ID = 'global-chat'; // Define global thread ID
 
 const Entry: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+
+
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
     const entry = useJournalStore((state) => id ? state.getEntryById(id) : undefined);
     const updateEntry = useJournalStore((state) => state.updateEntry);
     const updateEntryTitle = useJournalStore((state) => state.updateEntryTitle);
@@ -68,10 +73,15 @@ const Entry: React.FC = () => {
         if (!chatInput.trim()) return;
         const userText = chatInput;
         setChatInput('');
-        await sendMessageToAI(userText, threadId, {
-            targetType: 'journal',
-            entryId: id,
-        });
+        if (entry && entry.content.length > 0) {
+            setErrorMessage(null);
+            await sendMessageToAI(userText, threadId, {
+                targetType: 'journal',
+                entryId: id,
+            });
+        } else {
+            setErrorMessage("Please write a journal entry before chatting.");
+        }
     };
 
     if (!entry || !id) {
@@ -202,6 +212,17 @@ const Entry: React.FC = () => {
                             hasStartedEditing={hasStartedEditing}
                             threadId={threadId} // Pass threadId
                         />
+
+                        {/* Error Message Card */}
+                        {errorMessage && (
+                            <div className="px-3 mb-4">
+                                <Card className="bg-destructive/10 border-destructive/50">
+                                    <CardContent className="text-destructive text-sm">
+                                        {errorMessage}
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
 
                     </div>
 

@@ -18,6 +18,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { trackCreateEntry } from '@/services/analyticsService';
+import { Button } from "./ui/button"
 
 // Define types for our navigation structure
 interface NavItem {
@@ -77,14 +78,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     navigate(`/entry/${newEntryId}`)
   }
 
+  const handlePreorderButtonClick = () => {
+    // redirect user to url: getecho.bringforth.dev
+    window.location.href = "https://getecho.bringforth.dev";
+  }
+
   return (
     <Sidebar {...props}>
       <SidebarHeader>
-        <div className="px-4 py-3 flex items-center gap-2">
-          <a href="#" className="flex items-center">
+        <div className="px-4 py-3 flex items-center w-full">
+          <a href="#" className="flex-1 flex items-center">
             <span className="text-2xl font-serif font-medium text-primary-900 dark:text-white tracking-tight">echo</span>
             <span className="ml-1 mt-0.5 h-2 w-2 rounded-full bg-primary"></span>
           </a>
+          <div className="flex-1">
+            {/* Preorder button that links to landing page */}
+            <Button
+              variant="outline"
+              className="text-primary hover:cursor-pointer"
+              onClick={handlePreorderButtonClick}
+            >
+              <span>🚀</span>
+              Preorder
+            </Button>
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
