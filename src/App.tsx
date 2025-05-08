@@ -29,6 +29,7 @@ import { AIProvider } from "./context/AIContext";
 import AIChatScreen from '@/components/AIChatScreen';
 import SettingsScreen from './pages/Settings';
 import Entries from './pages/Entries';
+import PrivacyInfo from './pages/PrivacyInfo';
 
 // Helper component to track page views
 function TrackPageViews() {
@@ -61,6 +62,7 @@ function App() {
               <Route path="/conversation/:id" element={<AIChatScreen />} />
               <Route path="/settings" element={<SettingsScreen />} />
               <Route path="/entries" element={<Entries />} />
+              <Route path="/privacy-info" element={<PrivacyInfo />} />
             </Routes>
           </SidebarInset>
         </SidebarProvider>

@@ -163,7 +163,7 @@ const Entry: React.FC = () => {
             {/* Main content area: flex-1 to take remaining space, min-h-0 for flex child */}
             <div className="flex-1 flex flex-col md:flex-row min-h-0">
                 {/* Journal Area: flex-1, overflow */}
-                <div className="flex-1 min-w-0 px-4 pt-6 overflow-y-auto bg-background flex flex-col">
+                <div className="flex-1 min-w-0 px-4 pt-6 mb-8 overflow-y-auto bg-background flex flex-col">
                     <div className="flex flex-col flex-1 min-h-0 space-y-4">
                         <textarea
                             value={entry.content}
@@ -194,7 +194,7 @@ const Entry: React.FC = () => {
                         "md:border-l border-border",
                         "md:relative md:w-[40%] md:flex md:flex-col md:h-full md:shrink-0", // Desktop styles
                         isMobile ? "fixed bottom-0 left-0 right-0 z-10 flex flex-col" : "", // Mobile styles: fixed, flex-col
-                        isChatExpanded ? "bg-background" : "", // Gradient background
+                        isChatExpanded ? "bg-background h-[70vh]" : "", // Gradient background
                         isMobile && "mb-[-20px] pb-[20px]", // Extend gradient past the input area on mobile by using negative margin
                     )}
                 >
@@ -203,7 +203,7 @@ const Entry: React.FC = () => {
                         "flex flex-5 flex-col flex overflow-hidden transition-all duration-300 ease-in-out mx-6",
                         // Mobile specific styles
                         isMobile && !isChatExpanded && "hidden", // Use hidden to remove from layout
-                        isMobile && isChatExpanded && "h-[400px] max-h-[60vh] bg-background mx-6", // Set height and solid background when expanded
+                        isMobile && isChatExpanded && "h-[60vh] bg-background mx-6", // Set height and solid background when expanded
                         // Desktop styles
                         !isMobile && "h-full" // Desktop: always full height within container
                     )}>

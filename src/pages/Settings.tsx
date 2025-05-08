@@ -33,7 +33,7 @@ const SettingsScreen: React.FC = () => {
     }, [settings.theme]);
 
     return (
-        <div>
+        <>
             <AppHeader center={<span className="text-2xl font-bold">Settings</span>} />
             <div className="max-w-xl mx-auto p-8">
                 <div className="space-y-8"> {/* Increased spacing between sections */}
@@ -103,7 +103,7 @@ const SettingsScreen: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 };
 

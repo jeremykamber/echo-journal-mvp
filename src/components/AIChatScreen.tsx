@@ -215,7 +215,7 @@ const AIChatScreen: React.FC = () => {
             </div>
             <div className="relative flex flex-col flex-1">
                 {/* Scrollable content area */}
-                <div className="flex-1 overflow-auto relative">
+                <div className="flex-1 overflow-auto relative mb-8">
                     {/* Only render one view at a time to prevent flicker */}
                     {showHome && (
                         <div
@@ -226,7 +226,7 @@ const AIChatScreen: React.FC = () => {
                             )}
                         >
                             <SidebarTrigger className="md:hidden m-4" />
-                            <div className="container flex flex-col items-center mx-auto relative z-10 flex-1 overflow-y-auto p-8">
+                            <div className="container flex flex-col items-center mx-auto relative z-10 flex-1 p-8">
                                 <EyebrowTextPill
                                     isLoaded={isLoaded}
                                     text={new Date().toLocaleDateString('en-US', {
