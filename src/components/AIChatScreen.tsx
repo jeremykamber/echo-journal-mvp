@@ -3,6 +3,8 @@ import AppHeader from './AppHeader';
 import { useNavigate, useParams } from 'react-router-dom';
 import useJournalStore from '@/store/journalStore';
 import useConversationStore from '@/store/conversationStore';
+import { useOnboardingStore } from '@/store/onboardingStore';
+import AIChatTour from '@/components/tours/AIChatTour';
 
 import { ChatBubble } from '@/components/ChatBubble';
 import { ChatInput } from '@/components/ChatInput';
@@ -299,6 +301,9 @@ const AIChatScreen: React.FC = () => {
                     </div>
                 </div>
             </div> {/* close relative flex-1 */}
+
+            {/* Add the AI Chat Tour component */}
+            <AIChatTour />
         </section>
     );
 };

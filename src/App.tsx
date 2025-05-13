@@ -30,6 +30,10 @@ import AIChatScreen from '@/components/AIChatScreen';
 import SettingsScreen from './pages/Settings';
 import Entries from './pages/Entries';
 import PrivacyInfo from './pages/PrivacyInfo';
+import SuccessDialog from './components/SuccessDialog'; // Import SuccessDialog
+import useSuccessDialogStore from './store/successDialogStore'; // Import the store
+import OnboardingModal from './components/onboarding/OnboardingModal'; // Import OnboardingModal
+import { useOnboardingTrigger } from './hooks/useOnboardingTrigger'; // Import onboarding hook
 
 // Helper component to track page views
 function TrackPageViews() {
@@ -47,25 +51,46 @@ function TrackPageViews() {
 }
 
 
+// Component that handles main app functionality including onboarding trigger
+function AppContent() {
+  useOnboardingTrigger(); // Hook that auto-triggers onboarding for new users
+  const { isOpen, title, message, hideSuccessDialog } = useSuccessDialogStore();
+
+  return (
+    <SidebarProvider>
+      <ThemeEffect />
+      <TrackPageViews />
+      <AppSidebar />
+      <SidebarInset>
+        <Routes>
+          <Route path="/" element={<AIChatScreen />} />
+          <Route path="/entry/:id" element={<Entry />} />
+          <Route path="/conversation/:id" element={<AIChatScreen />} />
+          <Route path="/settings" element={<SettingsScreen />} />
+          <Route path="/entries" element={<Entries />} />
+          <Route path="/privacy-info" element={<PrivacyInfo />} />
+        </Routes>
+      </SidebarInset>
+
+      {/* Success Dialog */}
+      <SuccessDialog
+        isOpen={isOpen}
+        onClose={hideSuccessDialog}
+        title={title}
+        message={message}
+      />
+
+      {/* Onboarding Modal */}
+      <OnboardingModal />
+    </SidebarProvider>
+  );
+}
+
 function App() {
   return (
     <Router>
       <AIProvider>
-        <SidebarProvider>
-          <ThemeEffect />
-          <TrackPageViews /> {/* Add page view tracker */}
-          <AppSidebar />
-          <SidebarInset>
-            <Routes>
-              <Route path="/" element={<AIChatScreen />} />
-              <Route path="/entry/:id" element={<Entry />} />
-              <Route path="/conversation/:id" element={<AIChatScreen />} />
-              <Route path="/settings" element={<SettingsScreen />} />
-              <Route path="/entries" element={<Entries />} />
-              <Route path="/privacy-info" element={<PrivacyInfo />} />
-            </Routes>
-          </SidebarInset>
-        </SidebarProvider>
+        <AppContent />
       </AIProvider>
     </Router>
   );

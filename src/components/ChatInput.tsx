@@ -57,7 +57,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     };
 
     return (
-        <div className="relative flex items-center gap-2 bg-white dark:bg-input-opaque shadow-md rounded-xl px-4 py-2 border border-muted dark:border-input">
+        <div className="chat-input-container relative flex items-center gap-2 bg-white dark:bg-input-opaque shadow-md rounded-xl px-4 py-2 border border-muted dark:border-input">
             {isExpanded && onMinimize && (
                 <Button
                     variant="ghost"
