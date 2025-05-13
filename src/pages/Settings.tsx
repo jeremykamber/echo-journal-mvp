@@ -1,10 +1,17 @@
 import React from 'react';
 import { useSettingsStore, AppSettings } from '@/store/settingsStore'; // Import AppSettings
+import ExportEntriesButton from '@/components/ExportEntriesButton'; // Import the new component
 import { trackSettingsChange } from '@/services/analyticsService';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"; // Added import for Select components
 import AppHeader from '@/components/AppHeader';
 
 const SettingsScreen: React.FC = () => {
@@ -98,6 +105,25 @@ const SettingsScreen: React.FC = () => {
                             <Label htmlFor="showReflectionLabels">Show Reflection Labels</Label>
                             <p className="text-sm text-muted-foreground">
                                 Toggle whether labels are displayed for reflections.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Export Entries Section */}
+                    <div className="space-y-4 pt-6 border-t border-border">
+                        <ExportEntriesButton />
+                    </div>
+                    {/* Auto-reflect Toggle Section */}
+                    <div className="flex items-start space-x-4">
+                        <Checkbox
+                            id="autoReflect"
+                            checked={settings.autoReflect}
+                            onCheckedChange={(checked) => handleSettingChange('autoReflect', !!checked)}
+                        />
+                        <div className="space-y-1">
+                            <Label htmlFor="autoReflect">Auto-reflect</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Enable reflections to open automatically as you type.
                             </p>
                         </div>
                     </div>
