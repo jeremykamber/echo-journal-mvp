@@ -26,7 +26,7 @@ const llm = new ChatOpenAI({
 });
 
 const realtimeLlm = new ChatOpenAI({
-  model: 'gpt-4.1-nano',
+  model: 'gpt-4.1-mini',
   streaming: true,
   temperature: 0.5,
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
@@ -147,6 +147,7 @@ export async function* streamRealtimeReflection(
 5. Avoid being overly positive/cheerleading or negative/critical
 6. IMPORTANT: Always EXPLICITLY cite past journal entries when referring to them
 7. Citations should use the format: [cite:] where you put the entry id (e.g., entry-1745859019093-uzc68ky) after the colon. Make sure there are NO hashtags or other symbols in the citation. FOLLOW THIS FORMAT EXACTLY. Keep the "entry-" prefix and the ID (all letters and numbers) together, without spaces or other characters. If citing multiple entries, have separate brackets for each entry, like this: [cite:entry-1745859019093-uzc68ky] [cite:entry-1745873568069-fb2e27v]. Do not use any other format or symbols.
+    FOLLOW THIS FORMAT EXACTLY.\n
 8. Use natural language to introduce citations, such as:
    - "In a past entry [cite:entry-1745859019093-uzc68ky], you mentioned..."
    - "I notice a connection to when you wrote about... [cite:entry-1745873568069-fb2e27v]"
