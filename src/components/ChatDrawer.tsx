@@ -1,8 +1,7 @@
-import React, { useState, type ReactElement } from "react"
+import { useState, type ReactElement } from "react"
 import { motion } from 'framer-motion';
 import {
     Drawer,
-    DrawerClose,
     DrawerContent,
     DrawerFooter,
     DrawerTrigger,

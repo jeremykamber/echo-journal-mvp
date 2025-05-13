@@ -1,7 +1,5 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import Logo from '@/components/Logo';
-import { Card } from '@/components/ui/card';
 import EchoCard from '@/components/EchoCard';
 
 const OnboardingWelcome = () => {

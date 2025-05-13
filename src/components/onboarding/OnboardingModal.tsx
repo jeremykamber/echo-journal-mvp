@@ -1,4 +1,3 @@
-import React from 'react';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
