@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { ChatBubble } from '@/components/ChatBubble';
@@ -27,17 +26,19 @@ const OnboardingAI = () => {
                             sender: 'user',
                             text: 'What patterns do you notice in how I deal with stress?',
                             timestamp: new Date().toISOString(),
-                            id: 'example-1'
+                            messageId: 'example-1',
+                            conversationId: 'example-1',
                         }}
                     />
                 </div>
-                        
+
                 <ChatBubble
                     message={{
                         sender: 'ai',
                         text: 'Based on your journal entries, I\'ve noticed you tend to process stress through creative activities like **drawing** and **writing**. For example, last month you wrote that sketching helped clear your mind after a challenging work meeting.',
                         timestamp: new Date().toISOString(),
-                        id: 'example-2',
+                        messageId: 'example-2',
+                        conversationId: 'example-1',
                         isRealtimeReflection: false
                     }}
                 />
