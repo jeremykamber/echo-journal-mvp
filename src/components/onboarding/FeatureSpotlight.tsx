@@ -37,8 +37,8 @@ const FeatureSpotlight: React.FC<SpotlightProps> = ({
     const updatePosition = () => {
       const rect = targetElement.getBoundingClientRect();
       setCoordinates({
-        top: rect.top + window.scrollY,
-        left: rect.left + window.scrollX,
+        top: rect.top + window.scrollY + (targetSelector == '[data-sidebar="trigger"]' ? 2 : 0),
+        left: rect.left + window.scrollX  + (targetSelector == '[data-sidebar="trigger"]' ? 8 : 0),
         width: rect.width,
         height: rect.height,
       });
@@ -65,7 +65,7 @@ const FeatureSpotlight: React.FC<SpotlightProps> = ({
     switch (position) {
       case 'top':
         return {
-          top: coordinates.top - padding - 100,
+          top: coordinates.top - padding,
           left: coordinates.left + coordinates.width / 2,
           transform: 'translate(-50%, -100%)',
         };
@@ -128,13 +128,24 @@ const FeatureSpotlight: React.FC<SpotlightProps> = ({
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
           className={cn(
-            "absolute bg-card border border-border rounded-md p-4 shadow-lg",
+            "fixed bg-card border border-border rounded-md p-4 shadow-lg",
             "max-w-xs z-50"
           )}
           style={{
-            top: tooltipPosition.top,
-            left: tooltipPosition.left,
+            top: Math.min(
+              Math.max(tooltipPosition.top, 8),
+              window.innerHeight - 8 - 200 // 8px margin, 200px min height for box
+            ),
+            left: Math.min(
+              Math.max(tooltipPosition.left, 8),
+              window.innerWidth - 8 - 320 // 8px margin, 320px max width
+            ),
             transform: tooltipPosition.transform,
+            maxWidth: '320px',
+            width: 'calc(100vw - 16px)',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            zIndex: 9999,
           }}
           onClick={(e) => e.stopPropagation()}
         >

@@ -6,12 +6,13 @@ import JournalEntryTour from '@/components/tours/JournalEntryTour';
 import useJournalStore, { JournalState } from '@/store/journalStore';
 import ChatPanel from '@/components/ChatPanel';
 import { ChatInput } from '@/components/ChatInput'; // Import ChatInput
+import FeatureTour from '@/components/onboarding/FeatureTour';
 import { cn } from '@/lib/utils';
 import { Pencil as PencilIcon, Check as CheckIcon, X as XIcon } from 'lucide-react';
 import DeleteEntryButton from '@/components/DeleteEntryButton';
 import { useAI } from '@/context/AIContext'; // Import useAI
 import { Card, CardContent } from '@/components/ui/card';
-import { RealtimeReflectionDrawer } from '@/components/RealtimeReflectionDrawer';
+import { ChatDrawer } from '@/components/ChatDrawer';
 
 
 const GLOBAL_THREAD_ID = 'global-chat'; // Define global thread ID
@@ -37,6 +38,17 @@ const Entry: React.FC = () => {
     const [threadId, setThreadId] = useState<string>(GLOBAL_THREAD_ID); // State for thread ID
 
     const isMobile = useIsMobile();
+
+    // Feature tour steps for mobile drawer
+    const drawerTourSteps = [
+        {
+            targetSelector: '.ai-reflection-button',
+            title: 'Chat Drawer',
+            description:
+                'This button will pulse when a realtime reflection has been generated.\n\Tap on the drawer to expand it and chat with Echo, or view your realtime reflections.',
+            position: 'top' as const,
+        },
+    ];
     const { sendMessageToAI } = useAI(); // Get send message function
 
     // State for title editing
@@ -92,6 +104,14 @@ const Entry: React.FC = () => {
 
     return (
         <>
+            {/* Mobile-only: Show feature tour for chat drawer */}
+            {isMobile && entry && (
+                <FeatureTour
+                    tourId="mobile-drawer"
+                    steps={drawerTourSteps}
+                    autoStart={true}
+                />
+            )}
             {/* Main journal entry layout */}
             <div className="flex flex-col h-screen">
                 <AppHeader
@@ -171,7 +191,7 @@ const Entry: React.FC = () => {
                             <textarea
                                 // Added entry-editor class for feature tour target
                                 className={cn(
-                                    "entry-editor w-full h-full px-4 bg-transparent text-base resize-none flex-1 min-h-0 transition-all duration-300",
+                                    "entry-editor w-full h-full px-4 pt-5 bg-transparent text-base resize-none flex-1 min-h-0 transition-all duration-300",
                                     "focus:outline-none",
                                     "placeholder:text-muted-foreground/50",
                                     // Add padding-bottom on mobile when chat is NOT expanded to make space for fixed input
@@ -188,13 +208,22 @@ const Entry: React.FC = () => {
                                 style={{ minHeight: 0 }}
                                 onFocus={() => setIsChatExpanded(false)} // Minimize chat on journal focus
                             />
-                            <RealtimeReflectionDrawer />
+                            {isMobile && <ChatDrawer
+                                entryId={entry.id}
+                                hasStartedEditing={hasStartedEditing}
+                                threadId={threadId}
+                                inputValue={chatInput}
+                                setInputValue={setChatInput}
+                                onSend={handleSend}
+                                inputPlaceholder="Chat with Echo..."
+                            />}
                         </div>
                     </div>
 
                     {/* Chat Container (Mobile: fixed bottom, Desktop: flex item) */}
                     <div
                         className={cn(
+                            "chat-panel",
                             "md:border-l border-border",
                             "md:relative md:w-[40%] md:flex md:flex-col md:h-full md:shrink-0", // Desktop styles
                             isMobile ? "fixed bottom-0 left-0 right-0 z-10 flex flex-col" : "", // Mobile styles: fixed, flex-col
@@ -231,25 +260,23 @@ const Entry: React.FC = () => {
                         </div>
 
                         {/* Chat Input Wrapper (Handles padding and background) */}
-                        <div
-                            className={cn(
-                                "flex-shrink-0",
-                                isChatExpanded ? "mb-8 mx-3" : "pb-8 px-3",
-                                isMobile && !isChatExpanded ? "bg-gradient-to-b from-transparent to-muted-foreground/60 dark:to-black/80" : ""
-                            )}
-                        >
-                            <ChatInput
-                                value={chatInput}
-                                onChange={setChatInput}
-
-                                onSend={handleSend}
-                                placeholder="Chat with Echo..."
-                                onFocus={() => isMobile ? setIsChatExpanded(true) : null} // Expand on focus
-                                // Removed onBlur handler for chatInputFocused
-                                isExpanded={isChatExpanded} // Pass expanded state
-                                onMinimize={() => setIsChatExpanded(false)} // Pass minimize handler
-                            />
-                        </div>
+                        {!isMobile && (
+                            <div
+                                className={cn(
+                                    "flex-shrink-0",
+                                    isChatExpanded ? "mb-8 mx-3" : "pb-8 px-3",
+                                )}
+                            >
+                                <ChatInput
+                                    value={chatInput}
+                                    onChange={setChatInput}
+                                    onSend={handleSend}
+                                    placeholder="Chat with Echo..."
+                                    // Removed onBlur handler for chatInputFocused
+                                    isExpanded={isChatExpanded} // Pass expanded state
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

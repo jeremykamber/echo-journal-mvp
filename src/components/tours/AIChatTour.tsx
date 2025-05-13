@@ -20,7 +20,7 @@ const chatTourSteps: TourStep[] = [
     targetSelector: '.new-journal-button', // This is a class we added to the new journal button
     title: 'Create Journal Entry',
     description: 'Click here to start writing a new journal entry and capture your thoughts.',
-    position: 'left'
+    position: 'bottom'
   }
 ];
 

@@ -29,7 +29,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         >
             <div className="flex items-center min-w-0 flex-1 gap-2">
                 {/* Sidebar trigger always visible on mobile */}
-                <SidebarTrigger className="md:hidden mr-1" />
+                <SidebarTrigger className="md:hidden mr-2" />
                 {left && <div className="flex items-center min-w-0">{left}</div>}
             </div>
             {center && (

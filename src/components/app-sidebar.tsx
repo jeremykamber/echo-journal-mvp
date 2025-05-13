@@ -153,7 +153,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         <div className="px-3 py-1">
                           <AnimatedButton
                             onClick={handleCreateNewEntry}
-                            className="w-full text-sm py-2 new-journal-button"
+                            className="w-full text-sm py-2"
                             icon={true}
                           >
                             New Journal Entry

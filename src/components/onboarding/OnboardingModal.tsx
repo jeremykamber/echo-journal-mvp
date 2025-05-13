@@ -42,8 +42,23 @@ export const OnboardingModal = () => {
 
     return (
         <Dialog open={isActive} onOpenChange={skipOnboarding}>
-            <DialogContent className="sm:max-w-[500px] flex flex-col border-primary/20 p-0 overflow-hidden">
-                <div className="p-6 flex flex-col items-center flex-1">
+            <DialogContent
+                className={
+                    cn(
+                        "sm:max-w-[500px] flex flex-col border-primary/20 p-0 overflow-hidden",
+                        "max-h-[100dvh] h-[90dvh] w-full max-w-full md:max-w-[500px]"
+                    )
+                }
+                style={{
+                    maxWidth: '100vw',
+                    width: '100%',
+                    maxHeight: '100dvh',
+                    height: '90dvh',
+                    padding: 0,
+                    overflow: 'hidden',
+                }}
+            >
+                <div className="flex-1 min-h-0 flex flex-col items-center overflow-y-auto p-6 w-full">
                     {renderStep()}
                 </div>
 
@@ -63,7 +78,7 @@ export const OnboardingModal = () => {
                 </div>
 
                 {/* Navigation buttons */}
-                <div className="flex justify-between border-t border-border p-4">
+                <div className="flex justify-between border-t border-border p-4 bg-background">
                     <Button
                         variant="ghost"
                         onClick={skipOnboarding}

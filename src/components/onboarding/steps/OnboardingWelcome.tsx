@@ -25,15 +25,15 @@ const OnboardingWelcome = () => {
                 <p className="mb-2">Here's what makes Echo special:</p>
                 <ul className="space-y-2">
                     <li className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                        <div className="h-2 w-2 min-w-2 min-h-2 rounded-full bg-primary aspect-square"></div>
                         <span>Private first-class journaling experience</span>
                     </li>
                     <li className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                        <div className="h-2 w-2 min-w-2 min-h-2 rounded-full bg-primary aspect-square"></div>
                         <span>Thoughtful AI reflections on your entries</span>
                     </li>
                     <li className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                        <div className="h-2 w-2 min-w-2 min-h-2 rounded-full bg-primary aspect-square"></div>
                         <span>Connect with past insights and memories</span>
                     </li>
                 </ul>

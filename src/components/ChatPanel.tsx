@@ -12,9 +12,10 @@ interface ChatPanelProps {
     entryId?: string;
     hasStartedEditing?: boolean;
     threadId: string;
+    isVisible?: boolean; // New prop to control visibility
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, hasStartedEditing, threadId }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, hasStartedEditing, threadId, isVisible = true }) => {
     const getEntryById = useJournalStore((state: JournalState) => state.getEntryById);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const addMessage = useJournalStore((state) => state.addMessage);
@@ -25,6 +26,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, hasStartedEditing, threa
 
     const reflectionSimilarityThreshold = useSettingsStore((state) => state.reflectionSimilarityThreshold); // Use setting
     const reflectionMinLength = useSettingsStore((state) => state.reflectionMinLength); // Use setting
+
+    // Mark all messages in this thread as read when the panel is rendered
+    const markAllMessagesAsReadInThread = useJournalStore((state) => state.markAllMessagesAsReadInThread);
+
+    useEffect(() => {
+        // Only mark as read when the panel is actually visible
+        if (isVisible) {
+            markAllMessagesAsReadInThread(threadId, { sender: 'ai' });
+        }
+    }, [threadId, isVisible]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -80,6 +91,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, hasStartedEditing, threa
             cancelled = true;
         };
     }, [debouncedContent, entryId, threadId, addMessage, hasStartedEditing, reflectionSimilarityThreshold, reflectionMinLength]);
+
+
 
     return (
         <>

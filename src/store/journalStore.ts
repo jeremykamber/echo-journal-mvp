@@ -25,12 +25,13 @@ export interface Message {
     threadId: string; // Which thread this message belongs to
     isRealtimeReflection?: boolean; // Special flag for realtime reflections
     reflectedContent?: string; // The journal content that was reflected on
+    isRead?: boolean; // Flag to indicate if the message has been read
 }
 
 export interface JournalState {
     entries: JournalEntry[];
     messages: Message[];
-    addMessage: (sender: 'user' | 'ai', text: string, threadId: string, entryId?: string, isRealtimeReflection?: boolean, reflectedContent?: string) => string;
+    addMessage: (sender: 'user' | 'ai', text: string, threadId: string, entryId?: string, isRealtimeReflection?: boolean, reflectedContent?: string, isRead?: boolean) => string;
     updateEntry: (id: string, content: string) => void;
     updateEntryTitle: (id: string, title: string) => void;
     updateLastMessage: (text: string) => void;
@@ -50,6 +51,18 @@ export interface JournalState {
 
     // Update message by ID
     updateMessageById: (messageId: string, newText: string) => void;
+
+    /**
+     * Mark a message as seen/read by its ID.
+     * Optionally, you can pass isRead (default true).
+     */
+    markMessageAsRead: (messageId: string, isRead?: boolean) => void;
+
+    /**
+     * Mark all messages in a thread as read/seen.
+     * Optionally, filter by sender (e.g., only AI messages).
+     */
+    markAllMessagesAsReadInThread: (threadId: string, options?: { sender?: 'user' | 'ai' }) => void;
 }
 
 // Define a constant for the global chat thread
@@ -61,7 +74,10 @@ const useJournalStore = create<JournalState>()(
             entries: [],
             activeThreadId: GLOBAL_THREAD_ID,
             messages: [],
-            addMessage: (sender, text, threadId, entryId, isRealtimeReflection = false, reflectedContent) => {
+            /**
+             * Add a message to the store. Messages are unread (isRead: false) by default unless specified in the message object.
+             */
+            addMessage: (sender, text, threadId, entryId, isRealtimeReflection = false, reflectedContent, isRead = false) => {
                 const messageId = uuidv4(); // Generate a unique message ID
                 set((state) => ({
                     messages: [
@@ -75,6 +91,7 @@ const useJournalStore = create<JournalState>()(
                             threadId,
                             isRealtimeReflection,
                             ...(reflectedContent ? { reflectedContent } : {}),
+                            isRead,
                         },
                     ],
                 }));
@@ -185,6 +202,25 @@ const useJournalStore = create<JournalState>()(
                     messages: state.messages.map((message) =>
                         message.messageId === messageId ? { ...message, text: newText } : message
                     ),
+                }));
+            },
+
+            markMessageAsRead: (messageId, isRead = true) => {
+                set((state) => ({
+                    messages: state.messages.map((message) =>
+                        message.messageId === messageId ? { ...message, isRead } : message
+                    ),
+                }));
+            },
+
+            markAllMessagesAsReadInThread: (threadId, options = {}) => {
+                set((state) => ({
+                    messages: state.messages.map((message) => {
+                        if (message.threadId === threadId && (options.sender ? message.sender === options.sender : true)) {
+                            return { ...message, isRead: true };
+                        }
+                        return message;
+                    }),
                 }));
             },
         }),

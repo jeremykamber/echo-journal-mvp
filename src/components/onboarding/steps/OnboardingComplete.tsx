@@ -20,11 +20,7 @@ export const OnboardingComplete = () => {
             </p>
 
             <div className="grid grid-cols-1 gap-4 w-full mb-4">
-                <motion.div
-                    className="bg-card border border-border rounded-md p-4 flex items-center gap-3"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                >
+                <div className="bg-card border border-border rounded-md p-4 flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <span className="text-primary font-medium">1</span>
                     </div>
@@ -32,13 +28,9 @@ export const OnboardingComplete = () => {
                         <p className="font-medium">Create your first journal entry</p>
                         <p className="text-sm text-muted-foreground">Start writing and reflect on your day</p>
                     </div>
-                </motion.div>
+                </div>
 
-                <motion.div
-                    className="bg-card border border-border rounded-md p-4 flex items-center gap-3"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                >
+                <div className="bg-card border border-border rounded-md p-4 flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <span className="text-primary font-medium">2</span>
                     </div>
@@ -46,7 +38,7 @@ export const OnboardingComplete = () => {
                         <p className="font-medium">Ask Echo a question</p>
                         <p className="text-sm text-muted-foreground">Start a conversation about your journal entries</p>
                     </div>
-                </motion.div>
+                </div>
             </div>
 
             <p className="text-sm text-muted-foreground">

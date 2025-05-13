@@ -256,7 +256,7 @@ const AIChatScreen: React.FC = () => {
                                             navigate(`/entry/${newEntryId}`);
                                         }}
                                         className={cn(
-                                            "flex items-center gap-2 text-md py-6 px-6 shadow-md",
+                                            "flex items-center gap-2 text-md py-6 px-6 shadow-md new-journal-button",
                                             "bg-primary text-primary-foreground hover:bg-primary/90",
                                             "opacity-0 transform translate-y-4",
                                             isLoaded && "opacity-100 translate-y-0 transition-all duration-500 ease-out"
