@@ -38,7 +38,7 @@ const FeatureSpotlight: React.FC<SpotlightProps> = ({
       const rect = targetElement.getBoundingClientRect();
       setCoordinates({
         top: rect.top + window.scrollY + (targetSelector == '[data-sidebar="trigger"]' ? 2 : 0),
-        left: rect.left + window.scrollX  + (targetSelector == '[data-sidebar="trigger"]' ? 8 : 0),
+        left: rect.left + window.scrollX + (targetSelector == '[data-sidebar="trigger"]' ? 8 : 0),
         width: rect.width,
         height: rect.height,
       });
