@@ -8,9 +8,6 @@ import App from './App'
 const gaMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
 if (gaMeasurementId) {
   ReactGA.initialize(gaMeasurementId);
-  console.log("GA4 Initialized with ID:", gaMeasurementId);
-} else {
-  console.warn("GA4 Measurement ID not found. Analytics will not be sent.");
 }
 
 
