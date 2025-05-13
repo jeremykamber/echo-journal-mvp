@@ -6,10 +6,13 @@ export interface AppSettings {
     reflectionMinLength: number;
     theme: 'system' | 'light' | 'dark';
     showReflectionLabels: boolean;
+    autoReflect: boolean;
+    completedTours: string[];
 }
 
 interface SettingsState extends AppSettings {
     setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+    markTourCompleted: (tourId: string) => void;
 }
 
 const defaultSettings: AppSettings = {
@@ -17,6 +20,8 @@ const defaultSettings: AppSettings = {
     reflectionMinLength: 30,
     theme: 'system',
     showReflectionLabels: true,
+    autoReflect: true,
+    completedTours: [],
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -24,6 +29,9 @@ export const useSettingsStore = create<SettingsState>()(
         (set) => ({
             ...defaultSettings,
             setSetting: (key, value) => set({ [key]: value }),
+            markTourCompleted: (tourId) => set((state) => ({
+                completedTours: [...state.completedTours, tourId]
+            })),
         }),
         {
             name: 'app-settings',
@@ -32,6 +40,8 @@ export const useSettingsStore = create<SettingsState>()(
                 reflectionMinLength: state.reflectionMinLength,
                 theme: state.theme,
                 showReflectionLabels: state.showReflectionLabels,
+                autoReflect: state.autoReflect,
+                completedTours: state.completedTours,
             }),
         }
     )
