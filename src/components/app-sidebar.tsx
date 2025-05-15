@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Home, Settings, MessageSquare, Info } from "lucide-react"
+import { Home, Settings, MessageSquare, Info, Mail } from "lucide-react"
 import useJournalStore from "@/store/journalStore"
 import useConversationStore, { Conversation } from "@/store/conversationStore"
 import AnimatedButton from "@/components/AnimatedButton"
@@ -83,9 +83,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     navigate(`/entry/${newEntryId}`)
   }
 
-  const handlePreorderButtonClick = () => {
+  const handleMailingListButtonClick = () => {
     // redirect user to url: getecho.bringforth.dev
-    window.location.href = "https://getecho.bringforth.dev";
+    window.location.href = "https://getecho.bringforth.dev/";
   }
 
   return (
@@ -101,10 +101,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <Button
               variant="outline"
               className="text-primary hover:cursor-pointer"
-              onClick={handlePreorderButtonClick}
+              onClick={handleMailingListButtonClick}
             >
-              <span>🚀</span>
-              Preorder
+              <Mail className="h-4 w-4" />
+              Mailing List
             </Button>
           </div>
         </div>
