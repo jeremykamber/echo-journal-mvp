@@ -15,7 +15,8 @@ import {
     trackStartReflection,
     trackCompletedReflection,
     trackGaveFeedback,
-    trackEmailSubmitted
+    trackEmailSubmitted,
+    trackReflectionReaction
 } from '@/services/analyticsService';
 
 export {
@@ -30,7 +31,8 @@ export {
     trackStartReflection,
     trackCompletedReflection,
     trackGaveFeedback,
-    trackEmailSubmitted
+    trackEmailSubmitted,
+    trackReflectionReaction
 };
 
 /**

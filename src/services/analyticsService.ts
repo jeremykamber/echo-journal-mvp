@@ -86,6 +86,22 @@ export const trackGaveFeedback = (feedbackType?: string) => {
 };
 
 /**
+ * Track when a user gives feedback on a reflection
+ * @param feedbackType - Either 'like' or 'dislike'
+ * @param source - Where the reaction came from (e.g., 'Journal', 'Conversation')
+ * @param reflectionType - The type of reflection ('chat-response' or 'realtime-reflection')
+ */
+export const trackReflectionReaction = (
+    feedbackType: 'like' | 'dislike', 
+    source: string,
+    reflectionType?: 'chat-response' | 'realtime-reflection'
+) => {
+    trackEvent('AI', 'reflection_reaction', 
+        `Type: ${feedbackType}, Source: ${source}${reflectionType ? `, ReflectionType: ${reflectionType}` : ''}`
+    );
+};
+
+/**
  * Track when a user submits their email (e.g., newsletter signup)
  * @param source - Where the email was submitted from (e.g., 'Mailing List', 'Onboarding')
  */
