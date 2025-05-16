@@ -4,7 +4,7 @@ import useJournalStore from '@/store/journalStore';
 import useConversationStore from '@/store/conversationStore';
 import { reflectRAGWithStreaming } from '@/services/aiService';
 import { useNavigate } from 'react-router-dom'; // Import the useNavigate hook
-import { trackSendMessage } from '@/services/analyticsService';
+import { trackSendMessage, trackStartReflection } from '@/services/analyticsService';
 
 interface AIContextValue {
   sendMessageToAI: (
@@ -42,6 +42,9 @@ export const AIProvider = ({ children }: { children: ReactNode }) => {
 
     // Track the event before sending
     trackSendMessage();
+
+    // Track the start of reflection
+    trackStartReflection(targetType === 'conversation' ? 'Conversation' : 'Journal');
 
     // Optional: Perform the navigation before streaming to ensure DOM updates
     if (navigateTo) {

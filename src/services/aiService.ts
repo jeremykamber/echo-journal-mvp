@@ -11,6 +11,7 @@ import conversationStore from '@/store/conversationStore';
 import { Document } from 'langchain/document';
 import { IterableReadableStreamInterface } from '@langchain/core/utils/stream';
 import { OpenAIEmbeddings } from "@langchain/openai";
+import { trackCompletedReflection } from "@/services/analyticsService";
 
 // Define types for reflection responses
 export interface RealtimeReflectionResponse {
@@ -332,6 +333,9 @@ export async function reflectRAGWithStreaming({
     // Final update to ensure all text is saved
     updateAIMessage(aiMsgId, accumulatedText);
     console.log(`Completed streaming for conversation ${targetId}`);
+
+    // Track completion of reflection
+    trackCompletedReflection('Conversation');
   } else {
     const addAIMessage = journalStore.getState().addMessage;
     const updateAIMessage = journalStore.getState().updateMessageById;
@@ -351,5 +355,8 @@ export async function reflectRAGWithStreaming({
     // Final update to ensure all text is saved
     updateAIMessage(aiMsgId, accumulatedText);
     console.log(`Completed streaming for journal entry ${entryId} and target ${targetId} `);
+
+    // Track completion of reflection
+    trackCompletedReflection('Journal');
   }
 }

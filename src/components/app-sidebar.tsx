@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Home, Settings, MessageSquare, Info, Mail } from "lucide-react"
+import { Home, Settings, MessageSquare, Info, Mail, MessageCircle } from "lucide-react"
 import useJournalStore from "@/store/journalStore"
 import useConversationStore, { Conversation } from "@/store/conversationStore"
 import AnimatedButton from "@/components/AnimatedButton"
@@ -17,7 +17,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { trackCreateEntry } from '@/services/analyticsService';
+import { trackCreateEntry, trackGaveFeedback, trackEmailSubmitted } from '@/services/analyticsService';
 import { Button } from "./ui/button"
 
 // Define types for our navigation structure
@@ -26,7 +26,7 @@ interface NavItem {
   url?: string;
   icon?: React.ReactNode;
   isActive?: boolean;
-  special?: "button";
+  special?: "button" | "feedback";
 }
 
 interface NavGroup {
@@ -57,6 +57,11 @@ const data: { navMain: NavGroup[] } = {
           icon: <Info className="h-4 w-4 mr-2" />,
         },
         {
+          title: "Give Feedback",
+          icon: <MessageCircle className="h-4 w-4 mr-2" />,
+          special: "feedback", // Special identifier for feedback button
+        },
+        {
           title: "createNewEntry",
           special: "button", // Special identifier for the button
         },
@@ -84,8 +89,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   const handleMailingListButtonClick = () => {
+    // Track email submission event
+    trackEmailSubmitted('SidebarButton');
     // redirect user to url: getecho.bringforth.dev
     window.location.href = "https://getecho.bringforth.dev/";
+  }
+
+  const handleGiveFeedbackClick = () => {
+    trackGaveFeedback('SidebarButton');
+    window.open("https://cerulean-lightyear-07d.notion.site/1f45b818c71580eaaedece037f01f7c8?pvs=105", "_blank");
   }
 
   return (
@@ -159,16 +171,42 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             New Journal Entry
                           </AnimatedButton>
                         </div>
+                      ) : item.special === "feedback" ? (
+                        // Render the feedback button
+                        <SidebarMenuButton
+                          asChild
+                          isActive={false}
+                        >
+                          <a
+                            onClick={handleGiveFeedbackClick}
+                            className="flex items-center cursor-pointer"
+                          >
+                            {item.icon}
+                            {item.title}
+                          </a>
+                        </SidebarMenuButton>
                       ) : (
                         // Render normal navigation links
                         <SidebarMenuButton
                           asChild
                           isActive={location.pathname === item.url}
                         >
-                          <Link to={item.url || "#"} className="flex items-center">
-                            {item.icon}
-                            {item.title}
-                          </Link>
+                          {item.url?.startsWith('http') ? (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center"
+                            >
+                              {item.icon}
+                              {item.title}
+                            </a>
+                          ) : (
+                            <Link to={item.url || "#"} className="flex items-center">
+                              {item.icon}
+                              {item.title}
+                            </Link>
+                          )}
                         </SidebarMenuButton>
                       )}
                     </SidebarMenuItem>

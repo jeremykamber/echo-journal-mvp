@@ -59,3 +59,36 @@ export const trackSettingsChange = (settingName: string) => {
     // Track which setting was changed, but not the value
     trackEvent('Settings', 'ChangeSetting', `Setting: ${settingName}`);
 };
+
+/**
+ * Track when a reflection process starts
+ * @param source - The source of the reflection (e.g., 'Journal', 'Conversation')
+ */
+export const trackStartReflection = (source: string) => {
+    trackEvent('AI', 'start_reflection', `Source: ${source}`);
+};
+
+/**
+ * Track when a reflection process completes
+ * @param source - The source of the reflection (e.g., 'Journal', 'Conversation')
+ * @param durationMs - Optional duration in milliseconds
+ */
+export const trackCompletedReflection = (source: string, durationMs?: number) => {
+    trackEvent('AI', 'completed_reflection', `Source: ${source}${durationMs ? `, Duration: ${durationMs}ms` : ''}`);
+};
+
+/**
+ * Track when a user submits feedback
+ * @param feedbackType - Type of feedback (e.g., 'General', 'Bug', 'Feature')
+ */
+export const trackGaveFeedback = (feedbackType?: string) => {
+    trackEvent('Engagement', 'gave_feedback', feedbackType);
+};
+
+/**
+ * Track when a user submits their email (e.g., newsletter signup)
+ * @param source - Where the email was submitted from (e.g., 'Mailing List', 'Onboarding')
+ */
+export const trackEmailSubmitted = (source: string) => {
+    trackEvent('Engagement', 'email_submitted', `Source: ${source}`);
+};
