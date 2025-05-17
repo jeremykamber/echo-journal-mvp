@@ -6,7 +6,6 @@ import { Message as ConversationMessage } from '@/store/conversationStore';
 import MarkdownWithCitations from '@/components/MarkdownWithCitations';
 import ReflectionReaction from '@/components/ReflectionReaction';
 import { StashButton } from '@/components/StashButton';
-import { useSettingsStore } from '@/store/settingsStore';
 
 
 // Create a union type to support both message types

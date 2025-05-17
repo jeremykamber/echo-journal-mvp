@@ -1,7 +1,6 @@
 import * as React from "react"
 import { Link, useLocation } from "react-router-dom"
 import { Home, Settings, MessageSquare, Info, Mail, MessageCircle, Bookmark } from "lucide-react"
-import { useStashStore } from '@/store/stashStore';
 import useJournalStore from "@/store/journalStore"
 import useConversationStore, { Conversation } from "@/store/conversationStore"
 import AnimatedButton from "@/components/AnimatedButton"
@@ -86,9 +85,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const navigate = useNavigate()
   const conversations = useConversationStore((state) => state.conversations)
   const createEntry = useJournalStore((state) => state.createEntry)
-
-  // Stash badge count
-  const stashCount = useStashStore((state) => state.items.length)
 
   // Function to create a new journal entry and navigate to it
   const handleCreateNewEntry = () => {
