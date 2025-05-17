@@ -2,14 +2,17 @@ import React, { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Message as JournalMessage } from '@/store/journalStore';
 import { Message as ConversationMessage } from '@/store/conversationStore';
+
 import MarkdownWithCitations from '@/components/MarkdownWithCitations';
 import ReflectionReaction from '@/components/ReflectionReaction';
+import { StashButton } from '@/components/StashButton';
+import { useSettingsStore } from '@/store/settingsStore';
 
 
 // Create a union type to support both message types
 type MessageType =
     | (JournalMessage & { isRealtimeReflection?: boolean })
-    | (ConversationMessage & { threadId?: string; isRealtimeReflection?: boolean }); // Add optional threadId to make it compatible
+    | (ConversationMessage & { conversationId: string; threadId?: string; isRealtimeReflection?: boolean }); // Add optional threadId to make it compatible
 
 interface ChatBubbleProps {
     message: MessageType;
@@ -20,6 +23,10 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, children }) => 
     const [copied, setCopied] = React.useState(false);
     const [copyFailed, setCopyFailed] = React.useState(false);
     const isAI = message.sender === 'ai';
+
+    // Get userId for stashing (for now, fallback to 'local-user')
+    // In a real app, replace with actual user auth context
+    const userId = 'local-user';
 
     const handleCopy = async () => {
         try {
@@ -59,21 +66,87 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, children }) => 
                 <MarkdownWithCitations>{message.text}</MarkdownWithCitations>
             </div>
             {isAI && !!message.text && (
-                <>
-                    <div className="flex items-center justify-between mt-2 gap-2">
-                        {/* Like/Dislike Reactions */}
-                        <ReflectionReaction 
-                            reflectionText={message.text} 
-                            source={message.threadId?.startsWith('conversation') ? 'Conversation' : 'Journal'}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                            isRealtimeReflection={message.isRealtimeReflection}
+                message.isRealtimeReflection ? (
+                    <>
+                        {/* Stash + Copy row (always visible) */}
+                        <div className="flex items-center gap-2 mt-2 mb-1">
+                            <StashButton
+                                reflectionText={message.text}
+                                sourceType={('conversationId' in message && (message as any).conversationId) ? 'conversation' : 'journal'}
+                                sourceId={('conversationId' in message && (message as any).conversationId)
+                                    ? (message as any).conversationId
+                                    : (message.entryId || '')}
+                                sourceTitleOrDate={('conversationId' in message && (message as any).conversationId)
+                                    ? (message.timestamp ? new Date(message.timestamp).toLocaleDateString() : '')
+                                    : (message.entryId || '')}
+                                createdAt={message.timestamp}
+                                userId={userId}
+                            />
+                            <button
+                                onClick={handleCopy}
+                                className={cn(
+                                    'flex items-center gap-1 px-2 py-1 rounded-md text-xs border transition-all duration-300',
+                                    copied
+                                        ? 'text-primary border-primary bg-background'
+                                        : copyFailed
+                                            ? 'text-red-600 border-red-600 bg-red-100'
+                                            : 'text-muted-foreground border-border/60 bg-background hover:bg-muted'
+                                )}
+                                title="Copy AI output"
+                            >
+                                {copied ? (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Copied!
+                                    </>
+                                ) : copyFailed ? (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                        Failed!
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" />
+                                            <rect x="3" y="3" width="13" height="13" rx="2" />
+                                        </svg>
+                                        Copy
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                        {/* Feedback row (always visible) */}
+                        <div className="flex items-center gap-2 mb-1">
+                            <ReflectionReaction
+                                reflectionText={message.text}
+                                source={message.threadId?.startsWith('conversation') ? 'Conversation' : 'Journal'}
+                                isRealtimeReflection={message.isRealtimeReflection}
+                            />
+                        </div>
+                    </>
+                ) : (
+                    // Non-realtime: all on one line, only on hover
+                    <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <StashButton
+                            reflectionText={message.text}
+                            sourceType={('conversationId' in message && (message as any).conversationId) ? 'conversation' : 'journal'}
+                            sourceId={('conversationId' in message && (message as any).conversationId)
+                                ? (message as any).conversationId
+                                : (message.entryId || '')}
+                            sourceTitleOrDate={('conversationId' in message && (message as any).conversationId)
+                                ? (message.timestamp ? new Date(message.timestamp).toLocaleDateString() : '')
+                                : (message.entryId || '')}
+                            createdAt={message.timestamp}
+                            userId={userId}
                         />
-                        
-                        {/* Copy button */}
                         <button
                             onClick={handleCopy}
                             className={cn(
-                                'flex items-center gap-1 px-2 py-1 rounded-md text-xs border transition-all duration-300 ease opacity-0 group-hover:opacity-100',
+                                'flex items-center gap-1 px-2 py-1 rounded-md text-xs border transition-all duration-300',
                                 copied
                                     ? 'text-primary border-primary bg-background'
                                     : copyFailed
@@ -106,8 +179,13 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, children }) => 
                                 </>
                             )}
                         </button>
+                        <ReflectionReaction
+                            reflectionText={message.text}
+                            source={message.threadId?.startsWith('conversation') ? 'Conversation' : 'Journal'}
+                            isRealtimeReflection={message.isRealtimeReflection}
+                        />
                     </div>
-                </>
+                )
             )}
             {children && <div className="mt-3 pt-3 border-t border-secondary/30">{children}</div>}
         </div>

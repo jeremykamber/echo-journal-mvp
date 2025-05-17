@@ -279,7 +279,7 @@ const AIChatScreen: React.FC = () => {
                                 isConversation ? 'opacity-100 animate-fade-in' : 'opacity-0 pointer-events-none'
                             )}
                         >
-                            <div className="flex flex-col items-end flex-1 overflow-auto p-4 space-y-3">
+                            <div className="flex flex-col items-end flex-1 overflow-auto p-4 space-y-10">
                                 {/* Conversation title is now in header */}
                                 {messages.map(m => (
                                     <ChatBubble key={m.messageId + m.sender} message={m} />

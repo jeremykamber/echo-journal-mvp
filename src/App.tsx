@@ -29,11 +29,13 @@ import { AIProvider } from "./context/AIContext";
 import AIChatScreen from '@/components/AIChatScreen';
 import SettingsScreen from './pages/Settings';
 import Entries from './pages/Entries';
+import Stash from './pages/Stash';
 import PrivacyInfo from './pages/PrivacyInfo';
 import SuccessDialog from './components/SuccessDialog'; // Import SuccessDialog
 import useSuccessDialogStore from './store/successDialogStore'; // Import the store
 import OnboardingModal from './components/onboarding/OnboardingModal'; // Import OnboardingModal
 import { useOnboardingTrigger } from './hooks/useOnboardingTrigger'; // Import onboarding hook
+import { Toaster } from 'sonner';
 
 // Helper component to track page views
 function TrackPageViews() {
@@ -69,6 +71,7 @@ function AppContent() {
           <Route path="/settings" element={<SettingsScreen />} />
           <Route path="/entries" element={<Entries />} />
           <Route path="/privacy-info" element={<PrivacyInfo />} />
+          <Route path="/stash" element={<Stash />} />
         </Routes>
       </SidebarInset>
 
@@ -82,6 +85,7 @@ function AppContent() {
 
       {/* Onboarding Modal */}
       <OnboardingModal />
+      <Toaster />
     </SidebarProvider>
   );
 }
