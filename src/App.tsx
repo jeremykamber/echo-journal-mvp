@@ -36,6 +36,7 @@ import useSuccessDialogStore from './store/successDialogStore'; // Import the st
 import OnboardingModal from './components/onboarding/OnboardingModal'; // Import OnboardingModal
 import { useOnboardingTrigger } from './hooks/useOnboardingTrigger'; // Import onboarding hook
 import { Toaster } from 'sonner';
+import NotFound from './pages/NotFound';
 
 // Helper component to track page views
 function TrackPageViews() {
@@ -72,6 +73,7 @@ function AppContent() {
           <Route path="/entries" element={<Entries />} />
           <Route path="/privacy-info" element={<PrivacyInfo />} />
           <Route path="/stash" element={<Stash />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </SidebarInset>
 
