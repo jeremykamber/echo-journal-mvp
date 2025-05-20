@@ -6,6 +6,7 @@ import { Message as ConversationMessage } from '@/store/conversationStore';
 import MarkdownWithCitations from '@/components/MarkdownWithCitations';
 import ReflectionReaction from '@/components/ReflectionReaction';
 import { StashButton } from '@/components/StashButton';
+import { Button } from './ui/button';
 
 
 // Create a union type to support both message types
@@ -43,7 +44,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, children }) => 
     return (
         <div
             className={cn(
-                'group p-4 rounded-lg whitespace-pre-line',
+                'group p-4 rounded-lg whitespace-pre-line relative', // Added 'relative' for positioning
                 'text-sm shadow-md',
                 isAI
                     ? 'text-muted-foreground self-start shadow-primary-foreground/30 max-w-full'
@@ -65,128 +66,73 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, children }) => 
                 <MarkdownWithCitations>{message.text}</MarkdownWithCitations>
             </div>
             {isAI && !!message.text && (
-                message.isRealtimeReflection ? (
-                    <>
-                        {/* Stash + Copy row (always visible) */}
-                        <div className="flex items-center gap-2 mt-2 mb-1">
-                            <StashButton
-                                reflectionText={message.text}
-                                sourceType={('conversationId' in message && (message as any).conversationId) ? 'conversation' : 'journal'}
-                                sourceId={('conversationId' in message && (message as any).conversationId)
-                                    ? (message as any).conversationId
-                                    : (message.entryId || '')}
-                                sourceTitleOrDate={('conversationId' in message && (message as any).conversationId)
-                                    ? (message.timestamp ? new Date(message.timestamp).toLocaleDateString() : '')
-                                    : (message.entryId || '')}
-                                createdAt={message.timestamp}
-                                userId={userId}
-                            />
-                            <button
-                                onClick={handleCopy}
-                                className={cn(
-                                    'flex items-center gap-1 px-2 py-1 rounded-md text-xs border transition-all duration-300',
-                                    copied
-                                        ? 'text-primary border-primary bg-background'
-                                        : copyFailed
-                                            ? 'text-red-600 border-red-600 bg-red-100'
-                                            : 'text-muted-foreground border-border/60 bg-background hover:bg-muted'
-                                )}
-                                title="Copy AI output"
-                            >
-                                {copied ? (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        Copied!
-                                    </>
-                                ) : copyFailed ? (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                        Failed!
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                            <rect x="9" y="9" width="13" height="13" rx="2" />
-                                            <rect x="3" y="3" width="13" height="13" rx="2" />
-                                        </svg>
-                                        Copy
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                        {/* Feedback row (always visible) */}
-                        <div className="flex items-center gap-2 mb-1">
-                            <ReflectionReaction
-                                reflectionText={message.text}
-                                source={message.threadId?.startsWith('conversation') ? 'Conversation' : 'Journal'}
-                                isRealtimeReflection={message.isRealtimeReflection}
-                            />
-                        </div>
-                    </>
-                ) : (
-                    // Non-realtime: all on one line, only on hover
-                    <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <StashButton
-                            reflectionText={message.text}
-                            sourceType={('conversationId' in message && (message as any).conversationId) ? 'conversation' : 'journal'}
-                            sourceId={('conversationId' in message && (message as any).conversationId)
-                                ? (message as any).conversationId
-                                : (message.entryId || '')}
-                            sourceTitleOrDate={('conversationId' in message && (message as any).conversationId)
-                                ? (message.timestamp ? new Date(message.timestamp).toLocaleDateString() : '')
-                                : (message.entryId || '')}
-                            createdAt={message.timestamp}
-                            userId={userId}
-                        />
-                        <button
-                            onClick={handleCopy}
-                            className={cn(
-                                'flex items-center gap-1 px-2 py-1 rounded-md text-xs border transition-all duration-300',
-                                copied
-                                    ? 'text-primary border-primary bg-background'
-                                    : copyFailed
-                                        ? 'text-red-600 border-red-600 bg-red-100'
-                                        : 'text-muted-foreground border-border/60 bg-background hover:bg-muted'
-                            )}
-                            title="Copy AI output"
-                        >
-                            {copied ? (
-                                <>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Copied!
-                                </>
-                            ) : copyFailed ? (
-                                <>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                    Failed!
-                                </>
-                            ) : (
-                                <>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                        <rect x="9" y="9" width="13" height="13" rx="2" />
-                                        <rect x="3" y="3" width="13" height="13" rx="2" />
-                                    </svg>
-                                    Copy
-                                </>
-                            )}
-                        </button>
-                        <ReflectionReaction
-                            reflectionText={message.text}
-                            source={message.threadId?.startsWith('conversation') ? 'Conversation' : 'Journal'}
-                            isRealtimeReflection={message.isRealtimeReflection}
-                        />
-                    </div>
-                )
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <Button
+                        variant={'ghost'}
+                        onClick={handleCopy}
+                        className={cn(
+                            '',
+                            copied
+                                ? 'text-primary hover:text-primary border-primary bg-background'
+                                : copyFailed
+                                    ? 'text-red-600 border-red-600 bg-red-100'
+                                    : ''
+                        )}
+                        title="Copy AI output"
+                    >
+                        {copied ? (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Copied!
+                            </>
+                        ) : copyFailed ? (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Failed!
+                            </>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                                    <rect x="3" y="3" width="13" height="13" rx="2" />
+                                </svg>
+                                Copy
+                            </>
+                        )}
+                    </Button>
+                    <ReflectionReaction
+                        reflectionText={message.text}
+                        source={message.threadId?.startsWith('conversation') ? 'Conversation' : 'Journal'}
+                        isRealtimeReflection={message.isRealtimeReflection}
+                    />
+                </div>
+            )}
+            {/* Stash button in the bottom-right corner */}
+            {isAI && !!message.text && (
+                <div className="absolute bottom-2 right-2">
+                    <StashButton
+                        reflectionText={message.text}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        sourceType={('conversationId' in message && (message as any).conversationId) ? 'conversation' : 'journal'}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        sourceId={('conversationId' in message && (message as any).conversationId)
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            ? (message as any).conversationId
+                            : (message.entryId || '')}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        sourceTitleOrDate={('conversationId' in message && (message as any).conversationId)
+                            ? (message.timestamp ? new Date(message.timestamp).toLocaleDateString() : '')
+                            : (message.entryId || '')}
+                        createdAt={message.timestamp}
+                        userId={userId}
+                    />
+                </div>
             )}
             {children && <div className="mt-3 pt-3 border-t border-secondary/30">{children}</div>}
         </div>
     );
-};
+}

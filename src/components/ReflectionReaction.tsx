@@ -30,29 +30,29 @@ const ReflectionReaction: React.FC<ReflectionReactionProps> = ({
 }) => {
   const [selectedReaction, setSelectedReaction] = useState<'like' | 'dislike' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const [submitError, setSubmitError] = useState<string | null>(null);
-  
+
   const handleReaction = async (type: 'like' | 'dislike') => {
     if (isSubmitting) return;
-    
+
     setIsSubmitting(true);
     setSubmitError(null);
-    
+
     try {
       // Determine reflection type based on isRealtimeReflection flag
       const reflectionType = isRealtimeReflection ? 'realtime-reflection' : 'chat-response';
-      
+
       // Track the reaction in analytics with reflection type
       trackReflectionReaction(type, source, reflectionType);
-      
+
       // Submit reaction to Supabase
       const result = await submitReflectionFeedback(reflectionText, type, reflectionType);
-      
+
       if (!result.success) {
         throw result.error || new Error('Failed to submit feedback');
       }
-      
+
       // Update UI state
       setSelectedReaction(type);
     } catch (error) {
@@ -63,12 +63,10 @@ const ReflectionReaction: React.FC<ReflectionReactionProps> = ({
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <TooltipProvider>
       <div className={cn("flex items-center space-x-2 text-muted-foreground", className)}>
-        <span className="text-xs mr-1">Feedback:</span>
-        
         {submitError ? (
           <span className="text-xs text-amber-500 max-w-[180px] truncate" title={submitError}>
             Feedback recorded in analytics
@@ -99,7 +97,7 @@ const ReflectionReaction: React.FC<ReflectionReactionProps> = ({
                 <p className="text-xs opacity-70">Liked reflection data will be shared</p>
               </TooltipContent>
             </Tooltip>
-            
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
