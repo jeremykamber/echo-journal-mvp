@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Textarea } from "./ui/textarea";
 import { trackEvent, trackAppSatisfactionFeedback, trackAppSatisfactionDetailedFeedback } from '@/lib/analytics';
-import { submitAppFeedback } from '@/services/supabaseService';
+import useFeedbackNudge from '@/features/feedback/hooks/useFeedbackNudge';
 
 // Custom event name for reflection viewing
 const REFLECTION_VIEWED_EVENT = 'reflection_viewed';
@@ -44,32 +44,34 @@ const FeedbackNudge: React.FC = () => {
     };
   }, [hasShownNudge]);
 
+  const { submitEmoji, submitFeedback } = useFeedbackNudge();
+
   const handleEmojiClick = async (emoji: string) => {
-    // Track the feedback given with the emoji using specific function
+    // Track immediately for analytics parity with previous behavior
     trackAppSatisfactionFeedback(emoji);
 
-    if (emoji === "😞") {
+    const res = await submitEmoji(emoji);
+    if ((res as any).needsFollowUp) {
       setShowFollowUp(true);
-    } else {
-      // For positive/neutral feedback, submit immediately
-      try {
-        await submitAppFeedback(emoji);
-      } catch (error) {
-        console.error('Failed to submit emoji feedback:', error);
-      }
-      setIsNudgeOpen(false);
+      return;
     }
+
+    // If submission returned a result, handle errors or close dialog on success
+    const { result } = res as any;
+    if (result && !result.success) {
+      console.error('Failed to submit emoji feedback:', result.error);
+    }
+    setIsNudgeOpen(false);
   };
 
   const handleSubmitFeedback = async () => {
     // Track detailed feedback submission with specific function
     trackAppSatisfactionDetailedFeedback(feedback.length);
 
-    // Send feedback to Supabase
-    try {
-      await submitAppFeedback("😞", feedback);
-    } catch (error) {
-      console.error('Failed to submit detailed feedback:', error);
+    // Send feedback via service
+    const res = await submitFeedback('😞', feedback);
+    if (!res.success) {
+      console.error('Failed to submit detailed feedback:', res.error);
     }
 
     // Close dialog and reset state
