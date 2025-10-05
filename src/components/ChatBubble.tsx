@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Message as JournalMessage } from '@/store/journalStore';
 import { Message as ConversationMessage } from '@/store/conversationStore';
@@ -27,6 +27,25 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, children }) => 
     // Get userId for stashing (for now, fallback to 'local-user')
     // In a real app, replace with actual user auth context
     const userId = 'local-user';
+
+    // Trigger reflection_viewed event when an AI message is displayed
+    useEffect(() => {
+        if (isAI) {
+            // Only trigger once per message
+            const viewedMessages = JSON.parse(localStorage.getItem('viewedMessages') || '[]');
+            if (!viewedMessages.includes(message.messageId)) {
+                // Add to viewed messages
+                viewedMessages.push(message.messageId);
+                localStorage.setItem('viewedMessages', JSON.stringify(viewedMessages));
+
+                // Dispatch the event that the FeedbackNudge is listening for
+                const viewEvent = new CustomEvent('reflection_viewed', {
+                    detail: { messageId: message.messageId }
+                });
+                document.dispatchEvent(viewEvent);
+            }
+        }
+    }, [isAI, message.messageId]);
 
     const handleCopy = async () => {
         try {

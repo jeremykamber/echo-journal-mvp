@@ -4,7 +4,7 @@
 // Chat models
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 export const chatClient = new ChatOpenAI({
-    model: 'gpt-4.1-nano',
+    model: 'gpt-5-nano',
     // apiKey: process.env.OPENAI_API_KEY,
 });
 /**

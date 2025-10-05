@@ -3,10 +3,8 @@ import useJournalStore, { JournalState } from '@/store/journalStore';
 import { ChatBubble } from '@/components/ChatBubble';
 import { parseReflectionWithCitations } from '@/lib/parseReflectionWithCitations';
 import { useShallow } from 'zustand/shallow';
-import { streamRealtimeReflection } from '@/services/aiService';
-import { useDebounce } from '@/hooks/useDebounce';
-import { getEmbeddingSimilarity } from '@/services/llmService';
-import { useSettingsStore } from '@/store/settingsStore'; // Import settings store
+import { useSettingsStore } from '@/store/settingsStore';
+import { useRealtimeReflection } from '@/hooks/useRealtimeReflection';
 
 interface ChatPanelProps {
     entryId?: string;
@@ -42,55 +40,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, hasStartedEditing, threa
     }, [messages]);
 
     const entry = entryId ? getEntryById(entryId) : undefined;
-    const debouncedContent = useDebounce(entry?.content || '', 2000);
 
-    useEffect(() => {
-        if (!hasStartedEditing) return;
-        const trimmed = debouncedContent.trim();
-        const endsWithSentence = /[.!?]$/.test(trimmed);
-        if (!entryId || !trimmed || trimmed.length < reflectionMinLength || !endsWithSentence) return; // Use setting
-        let cancelled = false;
-        const addReflection = async () => {
-            const threadMessages = useJournalStore.getState().messages.filter((m) => m.threadId === threadId);
-            const lastReflection = [...threadMessages].reverse().find((m) => m.isRealtimeReflection);
-
-            let reflectionTarget = trimmed;
-            if (lastReflection || trimmed.length > 1200) {
-                const sentences = trimmed.match(/[^.!?]+[.!?]+/g) || [];
-                const lastSentences = sentences.slice(-3).join('').trim();
-                reflectionTarget = lastSentences.length > 80 ? lastSentences : trimmed.slice(-400);
-            }
-
-            if (lastReflection) {
-                const lastReflectedContent = lastReflection.reflectedContent || '';
-                const sim = await getEmbeddingSimilarity(lastReflectedContent, reflectionTarget);
-                if (sim > reflectionSimilarityThreshold || reflectionTarget.length < reflectionMinLength) return; // Use settings
-            }
-
-            let reflectionText = '';
-            let addedMessageId: string | null = null;
-            try {
-                const stream = streamRealtimeReflection(reflectionTarget, entryId);
-                for await (const { token } of stream) {
-                    if (cancelled) break;
-                    if (!addedMessageId) {
-                        addedMessageId = addMessage('ai', '', threadId, entryId, true, reflectionTarget);
-                    }
-                    reflectionText += token;
-                    useJournalStore.getState().updateMessageById(addedMessageId, reflectionText);
-                }
-            } catch (err) {
-                console.error('Error streaming realtime reflection:', err);
-            }
-            if (!cancelled && reflectionText.trim() && addedMessageId) {
-                useJournalStore.getState().updateMessageById(addedMessageId, reflectionText);
-            }
-        };
-        addReflection();
-        return () => {
-            cancelled = true;
-        };
-    }, [debouncedContent, entryId, threadId, addMessage, hasStartedEditing, reflectionSimilarityThreshold, reflectionMinLength]);
+    useRealtimeReflection({
+        entryId,
+        threadId,
+        content: entry?.content || '',
+        hasStartedEditing: !!hasStartedEditing,
+        reflectionSimilarityThreshold,
+        reflectionMinLength,
+    });
 
 
 

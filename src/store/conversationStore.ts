@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { reflectRAG } from '@/services/aiService';
+import { streamReflectionTokens } from '@/services/aiService';
 
 export interface Message {
     sender: 'user' | 'ai';
@@ -210,7 +210,7 @@ const useConversationStore = create<ConversationState>()(
 
             sendMessageWithReflection: async (input, threadId, entryId) => {
                 get().addMessage('user', input, threadId, entryId); // Add user message
-                await reflectRAG(
+                await streamReflectionTokens(
                     input,
                     'conversation',
                     entryId,

@@ -2,7 +2,7 @@
 import { createContext, useContext, ReactNode } from 'react';
 import useJournalStore from '@/store/journalStore';
 import useConversationStore from '@/store/conversationStore';
-import { reflectRAGWithStreaming } from '@/services/aiService';
+import { streamReflectionToStore } from '@/services/aiService';
 import { useNavigate } from 'react-router-dom'; // Import the useNavigate hook
 import { trackSendMessage, trackStartReflection } from '@/services/analyticsService';
 
@@ -66,7 +66,7 @@ export const AIProvider = ({ children }: { children: ReactNode }) => {
     // Start streaming the AI response
     console.log('Starting AI response streaming with:', { question: input, targetType, threadId, entryId });
     // Delegate streaming and state updates to AI service
-    await reflectRAGWithStreaming({
+    await streamReflectionToStore({
       question: input,
       targetType,
       targetId: threadId,

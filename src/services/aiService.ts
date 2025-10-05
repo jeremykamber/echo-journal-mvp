@@ -21,15 +21,13 @@ export interface RealtimeReflectionResponse {
 
 const llm = new ChatOpenAI({
   model: 'gpt-4.1-mini',
-  temperature: 0.5,
   streaming: true,
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
 });
 
 const realtimeLlm = new ChatOpenAI({
-  model: 'gpt-4.1-mini',
+  model: 'gpt-4.1-nano',
   streaming: true,
-  temperature: 0.5,
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
 });
 
@@ -201,7 +199,7 @@ I have found some past journal entries that might be relevant. Use these to prov
  * @param entryId Optional journal entry ID if this is from a specific entry
  * @param conversationId The conversation ID for retrieving chat history
  */
-export async function* reflectRAG(question: string, conversationId: string, entryId: string = '') {
+export async function* streamReflectionTokens(question: string, conversationId: string, entryId: string = '') {
   // Get current journal entry content if entryId is provided
   let currentEntryContent = '';
   if (entryId) {
@@ -251,13 +249,14 @@ export async function* reflectRAG(question: string, conversationId: string, entr
   // Build the prompt
   const prompt = ChatPromptTemplate.fromTemplate(
     `You are Echo, an AI journaling companion that provides thoughtful, context - aware responses.\n\n
+    You are also the user's friend, and advisor. Talk with them and respond to them conversationally, but still with depth and insight.\n\n
       Here is the user's question/prompt: \n{question}\n
       No matter what––above all––always respond to the user's query. \n\n
-    Provide ONLY the reflection text with no preamble or explanation. Ensure your output is beautiful and easy to read, written EXCLUSIVELY in markdown (with ample headings, subheadings, etc.). Don't add the code block for markdown, just write your output in markdown; I'll parse the output on my own and show it to the user as markdown. NO HTML IN YOUR OUTPUT!!!
+    Provide ONLY the reflection text with no preamble or explanation. Ensure your output is beautiful and easy to read, written EXCLUSIVELY in markdown (with choice use of headings, subheadings, etc.). Don't add the code block for markdown, just write your output in markdown; I'll parse the output on my own and show it to the user as markdown. NO HTML IN YOUR OUTPUT!!!
     If you cite a past entry, use the format [cite:] as described in the guidelines. Feel free directly quote entries as well if it drives home a point of yours.
      \n\n
       WRITING GUIDELINES: \n
-      1. Your reflection should be thought - provoking, and sharp.Support them emotionally, but also ensure you give them the brutal honest truth because it's for their best interests, don't sugarcoat things.\n
+      1. Your reflection should be thought - provoking, and sharp. Support them emotionally, but also ensure you give them the brutal honest truth because it's for their best interests, don't sugarcoat things.\n
       2. Focus on one of these aspects based on what's most relevant:\n
     - Patterns or themes you notice between the journal entry the user is currently writing (provided at the bottom of this prompt) and past / future entries\n
     - Growth or change you observe compared to similar past situations\n
@@ -301,7 +300,7 @@ export async function* reflectRAG(question: string, conversationId: string, entr
   }
 }
 
-export async function reflectRAGWithStreaming({
+export async function streamReflectionToStore({
   question,
   targetType,
   targetId,
@@ -323,7 +322,7 @@ export async function reflectRAGWithStreaming({
     const THROTTLE_MS = 50;
     console.log(`Starting streaming for conversation ${targetId}`);
     console.log(`Initial AI Message ID: ${aiMsgId} `);
-    for await (const token of reflectRAG(question, targetId, entryId)) {
+    for await (const token of streamReflectionTokens(question, targetId, entryId)) {
       accumulatedText += token;
       if (Date.now() - lastUpdate > THROTTLE_MS) {
         updateAIMessage(aiMsgId, accumulatedText);
@@ -345,7 +344,7 @@ export async function reflectRAGWithStreaming({
     const THROTTLE_MS = 50;
     console.log(`Starting streaming for journal entry ${entryId} and target ${targetId} `);
     console.log(`Initial AI Message ID: ${aiMsgId} `);
-    for await (const token of reflectRAG(question, targetId, entryId)) {
+    for await (const token of streamReflectionTokens(question, targetId, entryId)) {
       accumulatedText += token;
       if (Date.now() - lastUpdate > THROTTLE_MS) {
         updateAIMessage(aiMsgId, accumulatedText);

@@ -1,7 +1,51 @@
+// External imports
 import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom'; // Import useLocation
-import ReactGA from 'react-ga4'; // Import ReactGA
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import ReactGA from 'react-ga4';
+import { Toaster } from 'sonner';
+
+// Store imports
 import { useSettingsStore } from '@/store/settingsStore';
+import useSuccessDialogStore from './store/successDialogStore';
+
+// Component imports
+import { SidebarInset, SidebarProvider } from './components/ui/sidebar';
+import { AppSidebar } from './components/app-sidebar';
+import SuccessDialog from './components/SuccessDialog';
+import OnboardingModal from './components/onboarding/OnboardingModal';
+import FeedbackNudge from '@/components/FeedbackNudge';
+
+// Context imports
+import { AIProvider } from './context/AIContext';
+
+// Page imports
+import Entry from './pages/Entry';
+import AIChatScreen from '@/components/AIChatScreen';
+import SettingsScreen from './pages/Settings';
+import Entries from './pages/Entries';
+import Stash from './pages/Stash';
+import PrivacyInfo from './pages/PrivacyInfo';
+import NotFound from './pages/NotFound';
+
+// Hook imports
+import { useOnboardingTrigger } from './hooks/useOnboardingTrigger';
+
+// Helper component to track page views
+function TrackPageViews() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const gaMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
+    if (gaMeasurementId) {
+      ReactGA.send({ hitType: "pageview", page: location.pathname + location.search });
+      console.log(`GA4 Pageview tracked: ${location.pathname + location.search}`);
+    }
+  }, [location]);
+
+  return null;
+}
+
+// Component to handle theme changes
 function ThemeEffect() {
   const theme = useSettingsStore((s) => s.theme);
 
@@ -19,42 +63,11 @@ function ThemeEffect() {
       root.classList.remove('light');
     }
   }, [theme]);
-  return null;
-}
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Entry from "./pages/Entry";
-import { SidebarInset, SidebarProvider } from "./components/ui/sidebar";
-import { AppSidebar } from "./components/app-sidebar";
-import { AIProvider } from "./context/AIContext";
-import AIChatScreen from '@/components/AIChatScreen';
-import SettingsScreen from './pages/Settings';
-import Entries from './pages/Entries';
-import Stash from './pages/Stash';
-import PrivacyInfo from './pages/PrivacyInfo';
-import SuccessDialog from './components/SuccessDialog'; // Import SuccessDialog
-import useSuccessDialogStore from './store/successDialogStore'; // Import the store
-import OnboardingModal from './components/onboarding/OnboardingModal'; // Import OnboardingModal
-import { useOnboardingTrigger } from './hooks/useOnboardingTrigger'; // Import onboarding hook
-import { Toaster } from 'sonner';
-import NotFound from './pages/NotFound';
-
-// Helper component to track page views
-function TrackPageViews() {
-  const location = useLocation();
-
-  useEffect(() => {
-    const gaMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
-    if (gaMeasurementId) {
-      ReactGA.send({ hitType: "pageview", page: location.pathname + location.search });
-      console.log(`GA4 Pageview tracked: ${location.pathname + location.search}`);
-    }
-  }, [location]);
 
   return null;
 }
 
-
-// Component that handles main app functionality including onboarding trigger
+// Main app content component
 function AppContent() {
   useOnboardingTrigger(); // Hook that auto-triggers onboarding for new users
   const { isOpen, title, message, hideSuccessDialog } = useSuccessDialogStore();
@@ -88,10 +101,12 @@ function AppContent() {
       {/* Onboarding Modal */}
       <OnboardingModal />
       <Toaster />
+      <FeedbackNudge />
     </SidebarProvider>
   );
 }
 
+// Root app component
 function App() {
   return (
     <Router>

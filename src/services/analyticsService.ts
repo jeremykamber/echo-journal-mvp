@@ -92,11 +92,11 @@ export const trackGaveFeedback = (feedbackType?: string) => {
  * @param reflectionType - The type of reflection ('chat-response' or 'realtime-reflection')
  */
 export const trackReflectionReaction = (
-    feedbackType: 'like' | 'dislike', 
+    feedbackType: 'like' | 'dislike',
     source: string,
     reflectionType?: 'chat-response' | 'realtime-reflection'
 ) => {
-    trackEvent('AI', 'reflection_reaction', 
+    trackEvent('AI', 'reflection_reaction',
         `Type: ${feedbackType}, Source: ${source}${reflectionType ? `, ReflectionType: ${reflectionType}` : ''}`
     );
 };
@@ -105,6 +105,24 @@ export const trackReflectionReaction = (
  * Track when a user submits their email (e.g., newsletter signup)
  * @param source - Where the email was submitted from (e.g., 'Mailing List', 'Onboarding')
  */
-export const trackEmailSubmitted = (source: string) => {
-    trackEvent('Engagement', 'email_submitted', `Source: ${source}`);
+export const trackEmailSubmitted = () => {
+    trackEvent('Engagement', 'EmailSubmitted');
+};
+
+/**
+ * Track app satisfaction feedback with emoji rating
+ * 
+ * @param emoji The emoji rating selected by the user
+ */
+export const trackAppSatisfactionFeedback = (emoji: string) => {
+    trackEvent('Feedback', 'AppSatisfactionRating', emoji);
+};
+
+/**
+ * Track additional text feedback submitted after negative emoji rating
+ * 
+ * @param feedbackLength Length of the feedback provided (don't send actual content)
+ */
+export const trackAppSatisfactionDetailedFeedback = (feedbackLength: number) => {
+    trackEvent('Feedback', 'AppSatisfactionDetailedFeedback', `Length: ${feedbackLength}`);
 };

@@ -133,6 +133,16 @@ export interface ReflectionFeedback {
   user_id?: string;
 }
 
+// New interface for app user satisfaction feedback
+export interface AppFeedback {
+  id?: string;
+  user_id?: string;
+  emoji_rating: string; // "😃", "🙂", "😐", "😞"
+  additional_feedback?: string; // Text feedback for negative ratings
+  created_at?: string;
+  session_id?: string; // Optional: track which session this feedback is from
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -202,6 +212,62 @@ export const submitReflectionFeedback = async (
     return { success: true, error: null };
   } catch (error) {
     console.error('Exception when submitting reflection feedback:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error : new Error('Unknown error occurred'),
+    };
+  }
+};
+
+/**
+ * Submit app satisfaction feedback with emoji rating
+ * 
+ * @param emojiRating The emoji selected by the user (😃, 🙂, 😐, 😞)
+ * @param additionalFeedback Optional text feedback for negative ratings
+ * @returns Result of the insertion operation
+ */
+export const submitAppFeedback = async (
+  emojiRating: string,
+  additionalFeedback?: string
+): Promise<{ success: boolean; error: Error | null }> => {
+  try {
+    // Don't submit if environment variables aren't set up
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn('Supabase environment variables not configured, feedback submission skipped');
+      // Return success anyway to avoid confusing users when developers haven't set up Supabase
+      return { success: true, error: null };
+    }
+
+    // Get the current user ID if available
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Generate a session ID if not exists (helps track feedback from same session)
+    if (!localStorage.getItem('sessionId')) {
+      localStorage.setItem('sessionId', `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+    }
+    const sessionId = localStorage.getItem('sessionId');
+
+    // Create a feedback record
+    const feedbackRecord: AppFeedback = {
+      emoji_rating: emojiRating,
+      additional_feedback: additionalFeedback,
+      user_id: user?.id, // May be undefined for anonymous users
+      session_id: sessionId || undefined
+    };
+
+    // Insert into a new app_feedback table
+    const { error } = await supabase
+      .from('app_feedback')
+      .insert([feedbackRecord]);
+
+    if (error) {
+      console.error('Error submitting app feedback:', error);
+      return { success: false, error: new Error(`Supabase error: ${error.message}`) };
+    }
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Exception when submitting app feedback:', error);
     return {
       success: false,
       error: error instanceof Error ? error : new Error('Unknown error occurred'),
@@ -1462,24 +1528,13 @@ export const syncLocalDataToServer = async (
 
       // 4. Sync messages
       if (data.messages && data.messages.length > 0) {
-        // Sort messages by timestamp to maintain order
-        const sortedMessages = [...data.messages].sort(
-          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
-
-        for (const message of sortedMessages) {
-          // Get server IDs from maps
-          const threadId = message.threadId;
-          let entryId = message.entryId;
-
-          if (entryId && entryMap.has(entryId)) {
-            entryId = entryMap.get(entryId);
-          }
+        for (const message of data.messages) {
+          // Find the corresponding thread ID
+          const threadId = threadMap.get(message.threadId) || message.threadId;
 
           await addMessage({
             ...message,
-            threadId,
-            entryId
+            threadId
           });
         }
       }
@@ -1489,82 +1544,18 @@ export const syncLocalDataToServer = async (
       if (commitError) throw new SupabaseError('Failed to commit transaction', commitError);
 
       return { success: true, error: null };
-    } catch (innerError) {
+    } catch (error) {
       // Rollback transaction on error
       await supabase.rpc('rollback_transaction');
-      throw innerError;
+
+      throw error instanceof SupabaseError ? error : new SupabaseError('Data synchronization failed', error);
     }
   } catch (error) {
-    console.error('Exception during data sync:', error);
+    console.error('Exception syncing local data to server:', error);
     return {
       success: false,
       error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to sync data',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
-};
-
-/**
- * Pull all user data from server to local
- * 
- * @returns User data
- */
-export const pullUserData = async (): Promise<{
-  data: {
-    entries?: JournalEntry[];
-    threads?: Conversation[];
-    messages?: Message[];
-    settings?: AppSettings;
-    profile?: UserProfile;
-  } | null;
-  error: SupabaseError | null;
-}> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
-
-    // Get user profile
-    const { profile } = await getUserProfile();
-
-    // Get settings
-    const { settings } = await getUserSettings();
-
-    // Get journal entries
-    const { entries } = await getUserJournalEntries();
-
-    // Get threads
-    const { threads } = await getUserThreads();
-
-    // Get messages for each thread
-    const allMessages: Message[] = [];
-    if (threads) {
-      for (const thread of threads) {
-        const { messages } = await getMessagesForThread(thread.id);
-        if (messages) {
-          allMessages.push(...messages);
-        }
-      }
-    }
-
-    return {
-      data: {
-        entries: entries || [],
-        threads: threads || [],
-        messages: allMessages,
-        settings: settings || undefined,
-        profile: profile || undefined
-      },
-      error: null
-    };
-  } catch (error) {
-    console.error('Exception pulling user data:', error);
-    return {
-      data: null,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to pull user data',
+        'Failed to sync local data to server',
         error instanceof Error ? error : new Error(String(error))
       )
     };
