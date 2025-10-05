@@ -111,17 +111,16 @@ export const getStashCount = async (): Promise<{ count: number; error: Error | n
 };
 // src/services/supabaseService.ts
 
-import { createClient, User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
+import { supabase } from '@/clients/supabaseClient';
 import { AppSettings } from '@/store/settingsStore';
 import { JournalEntry, Message } from '@/store/journalStore';
 import { Conversation } from '@/store/conversationStore';
+import { insertAppFeedback } from '@/clients/supabaseClient';
 
-// Get Supabase URL and anon key from environment variables
+// Keep env guard values for local-dev short-circuit checks used elsewhere
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Create a Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Define schema types 
 export interface ReflectionFeedback {
@@ -220,51 +219,38 @@ export const submitReflectionFeedback = async (
 };
 
 /**
- * Submit app satisfaction feedback with emoji rating
- * 
- * @param emojiRating The emoji selected by the user (😃, 🙂, 😐, 😞)
- * @param additionalFeedback Optional text feedback for negative ratings
- * @returns Result of the insertion operation
+ * Deprecated: submitAppFeedback
+ *
+ * This function remains for backward compatibility. New code should use
+ * `feedbackService.submitFeedback` or the clients layer directly. Internally
+ * it delegates to the shared client helper to keep low-level insert logic
+ * centralized.
  */
 export const submitAppFeedback = async (
   emojiRating: string,
   additionalFeedback?: string
 ): Promise<{ success: boolean; error: Error | null }> => {
   try {
-    // Don't submit if environment variables aren't set up
+    // Keep the same local-dev guard behavior as before
     if (!supabaseUrl || !supabaseAnonKey) {
       console.warn('Supabase environment variables not configured, feedback submission skipped');
-      // Return success anyway to avoid confusing users when developers haven't set up Supabase
       return { success: true, error: null };
     }
 
-    // Get the current user ID if available
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // Generate a session ID if not exists (helps track feedback from same session)
+    // Enrich with session id
     if (!localStorage.getItem('sessionId')) {
       localStorage.setItem('sessionId', `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
     }
-    const sessionId = localStorage.getItem('sessionId');
+    const sessionId = localStorage.getItem('sessionId') || undefined;
 
-    // Create a feedback record
-    const feedbackRecord: AppFeedback = {
+    // Attempt insert via the clients layer
+    const res = await insertAppFeedback({
       emoji_rating: emojiRating,
       additional_feedback: additionalFeedback,
-      user_id: user?.id, // May be undefined for anonymous users
-      session_id: sessionId || undefined
-    };
+      session_id: sessionId,
+    });
 
-    // Insert into a new app_feedback table
-    const { error } = await supabase
-      .from('app_feedback')
-      .insert([feedbackRecord]);
-
-    if (error) {
-      console.error('Error submitting app feedback:', error);
-      return { success: false, error: new Error(`Supabase error: ${error.message}`) };
-    }
-
+    if (!res.success) return { success: false, error: res.error || new Error('Unknown client error') };
     return { success: true, error: null };
   } catch (error) {
     console.error('Exception when submitting app feedback:', error);
@@ -1438,126 +1424,4 @@ export const markTourCompleted = async (
         .update({ completed_tours: completedTours })
         .eq('user_id', user.id);
 
-      if (error) throw new SupabaseError('Failed to update completed tours', error);
-    }
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception marking tour as completed:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to mark tour as completed',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
-};
-
-// =============================================
-// Data Synchronization
-// =============================================
-
-/**
- * Sync all local data to the server
- * This is useful for initial data upload when a user first creates an account
- * 
- * @param data Local data to sync
- * @returns Success status
- */
-export const syncLocalDataToServer = async (
-  data: {
-    entries?: JournalEntry[];
-    conversations?: Conversation[];
-    messages?: Message[];
-    settings?: AppSettings;
-  }
-): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
-
-    // Start a transaction for data integrity
-    const { error: txError } = await supabase.rpc('begin_transaction');
-    if (txError) throw new SupabaseError('Failed to start transaction', txError);
-
-    try {
-      // 1. Sync settings
-      if (data.settings) {
-        await updateUserSettings(data.settings);
-      }
-
-      // 2. Sync journal entries
-      const entryMap = new Map<string, string>(); // clientId -> serverId
-      if (data.entries && data.entries.length > 0) {
-        for (const entry of data.entries) {
-          const { entry: createdEntry, error } = await createJournalEntry(entry);
-          if (error) throw error;
-          if (createdEntry) {
-            entryMap.set(entry.id, createdEntry.id);
-          }
-        }
-      }
-
-      // 3. Sync threads/conversations
-      const threadMap = new Map<string, string>(); // clientId -> serverId
-      if (data.conversations && data.conversations.length > 0) {
-        for (const conversation of data.conversations) {
-          // If this is an entry-specific thread, get the entry's server ID
-          let entryId = undefined;
-          if (conversation.id.includes('entry-')) {
-            const parts = conversation.id.split('-');
-            const possibleEntryId = `entry-${parts[1]}-${parts[2]}`;
-            if (entryMap.has(possibleEntryId)) {
-              entryId = entryMap.get(possibleEntryId);
-            }
-          }
-
-          const { thread: createdThread, error } = await createThread({
-            ...conversation,
-            entryId
-          });
-
-          if (error) throw error;
-          if (createdThread) {
-            threadMap.set(conversation.id, createdThread.id);
-          }
-        }
-      }
-
-      // 4. Sync messages
-      if (data.messages && data.messages.length > 0) {
-        for (const message of data.messages) {
-          // Find the corresponding thread ID
-          const threadId = threadMap.get(message.threadId) || message.threadId;
-
-          await addMessage({
-            ...message,
-            threadId
-          });
-        }
-      }
-
-      // Commit transaction
-      const { error: commitError } = await supabase.rpc('commit_transaction');
-      if (commitError) throw new SupabaseError('Failed to commit transaction', commitError);
-
-      return { success: true, error: null };
-    } catch (error) {
-      // Rollback transaction on error
-      await supabase.rpc('rollback_transaction');
-
-      throw error instanceof SupabaseError ? error : new SupabaseError('Data synchronization failed', error);
-    }
-  } catch (error) {
-    console.error('Exception syncing local data to server:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to sync local data to server',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
-};
+      if

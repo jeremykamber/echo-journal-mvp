@@ -4,8 +4,11 @@ import { useServices } from '@/providers/ServiceProvider';
 import type { FeedbackService } from '@/features/feedback/services/feedbackService';
 
 export function useFeedbackNudge({ service }: { service?: FeedbackService } = {}) {
-  const services = useServices();
-  const feedbackService: FeedbackService = service ?? services.feedbackService;
+  // If a service override is provided (useful for tests), avoid calling
+  // useServices() to prevent requiring the ServiceProvider in unit tests.
+  const feedbackService: FeedbackService = service
+    ? service
+    : useServices().feedbackService;
 
   const mutation = useMutation<
     { success: boolean; error: Error | null },
