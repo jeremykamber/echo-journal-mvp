@@ -3,6 +3,7 @@
  *
  * Custom React hook for managing LLM provider instances based on user settings.
  * Handles creation, initialization, and cleanup of LLM providers.
+ * Also sets the global provider for use in non-React code.
  *
  * Follows Single Responsibility Principle - only manages provider lifecycle.
  */
@@ -11,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { LLMProvider } from './interface';
 import { createLLMProvider, InitProgressCallback } from './providerFactory';
+import { setGlobalLLMProvider } from './adapterService';
 
 export interface UseLLMProviderOptions {
   onInitProgress?: InitProgressCallback;
@@ -19,6 +21,7 @@ export interface UseLLMProviderOptions {
 /**
  * Hook to get and manage the current LLM provider based on settings.
  * Automatically switches providers when settings change.
+ * Sets the global provider for access from non-React code.
  *
  * @param options - Optional configuration including progress callback
  * @returns Object with provider and initialization state
@@ -67,6 +70,8 @@ export function useLLMProvider(options?: UseLLMProviderOptions) {
         if (isMounted) {
           providerRef.current = newProvider;
           setProvider(newProvider);
+          // Set as global provider for non-React code access
+          setGlobalLLMProvider(newProvider);
         }
       } catch (err) {
         if (isMounted) {
@@ -95,6 +100,7 @@ export function useLLMProvider(options?: UseLLMProviderOptions) {
         providerRef.current.cleanup().catch(err => {
           console.warn('Error cleaning up LLM provider:', err);
         });
+        setGlobalLLMProvider(null);
       }
     };
   }, []);

@@ -1,6 +1,7 @@
 import React from 'react';
-import { useSettingsStore, AppSettings } from '@/store/settingsStore'; // Import AppSettings
-import ExportEntriesButton from '@/components/ExportEntriesButton'; // Import the new component
+import { useSettingsStore, AppSettings } from '@/store/settingsStore';
+import ExportEntriesButton from '@/components/ExportEntriesButton';
+import { AIProviderSettings } from '@/components/AIProvider';
 import { trackSettingsChange } from '@/services/analyticsService';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,7 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select"; // Added import for Select components
+} from "@/components/ui/select";
 import AppHeader from '@/components/AppHeader';
 
 const SettingsScreen: React.FC = () => {
@@ -96,6 +97,11 @@ const SettingsScreen: React.FC = () => {
                                 <SelectItem value="dark">Dark</SelectItem>
                             </SelectContent>
                         </Select>
+                    </div>
+
+                    {/* AI Provider Settings Section */}
+                    <div className="pt-6 border-t border-border">
+                        <AIProviderSettings />
                     </div>
                     <div className="flex items-start space-x-4"> {/* Added spacing between checkbox and label */}
                         <Checkbox
