@@ -4,11 +4,14 @@
  * Allows users to select between cloud (OpenAI) and local (WebLLM) AI providers.
  * When local is selected, users can choose from available open-source models.
  * Shows real-time download progress for WebLLM model initialization.
+ *
+ * NOTE: This component does NOT auto-initialize the model. The model is only
+ * initialized when actually needed (during chat/reflection). This prevents
+ * browser crashes from attempting to load large models unnecessarily.
  */
 
 import React from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useLLMProvider } from '@/services/llmProviders/useLLMProvider';
 import { AVAILABLE_MODELS, getModelById } from '@/services/llmProviders/providerFactory';
 import { Label } from '@/components/ui/label';
 import {
@@ -19,23 +22,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Cloud, Zap } from 'lucide-react';
-import ModelDownloadProgress from './ModelDownloadProgress';
+import { Cloud, Zap, Info } from 'lucide-react';
 
 /**
  * AIProviderSettings component for the settings page.
  * Allows switching between cloud and local AI providers.
+ * Does not auto-initialize models to avoid browser crashes.
  */
 export const AIProviderSettings: React.FC = () => {
   const aiProvider = useSettingsStore(state => state.aiProvider);
   const localModelId = useSettingsStore(state => state.localModelId);
   const setSetting = useSettingsStore(state => state.setSetting);
-
-  const { isInitializing, error, modelLoadingProgress } = useLLMProvider({
-    onInitProgress: () => {
-      // Progress callback can be used for additional logging if needed
-    },
-  });
 
   const currentModel = getModelById(localModelId);
 
@@ -168,13 +165,22 @@ export const AIProviderSettings: React.FC = () => {
                 </p>
               </div>
 
-              {/* Download Progress */}
-              <ModelDownloadProgress
-                progressText={modelLoadingProgress}
-                isLoading={isInitializing}
-                error={error}
-                modelName={currentModel?.name || 'Model'}
-              />
+              {/* Download Info */}
+              <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg">
+                <div className="flex gap-2">
+                  <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                      Model Download
+                    </p>
+                    <p className="text-xs text-amber-800 dark:text-amber-200 mt-1">
+                      The model will download automatically when you first use local inference. This may take
+                      several minutes depending on model size and internet speed. The download is cached for
+                      future use.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
