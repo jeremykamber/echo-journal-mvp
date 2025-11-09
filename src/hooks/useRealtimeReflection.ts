@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react';
-import useJournalStore, { JournalState } from '@/store/journalStore';
+import { useEffect, useRef, useState } from 'react';
+import useJournalStore from '@/store/journalStore';
 import { useDebounce } from '@/hooks/useDebounce';
 import { streamRealtimeReflection } from '@/services/aiService';
 import { getEmbeddingSimilarity } from '@/services/llmService';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getGlobalLLMProvider } from '@/services/llmProviders/adapterService';
 
 interface UseRealtimeReflectionProps {
   entryId?: string;
@@ -24,6 +26,8 @@ export function useRealtimeReflection({
   const addMessage = useJournalStore((state) => state.addMessage);
   const debouncedContent = useDebounce(content, 2000);
   const cancelledRef = useRef(false);
+  const [isInferring, setIsInferring] = useState(false);
+  const [inferenceError, setInferenceError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hasStartedEditing) return;
@@ -33,39 +37,64 @@ export function useRealtimeReflection({
     cancelledRef.current = false;
 
     const addReflection = async () => {
-      const threadMessages = useJournalStore.getState().messages.filter((m) => m.threadId === threadId);
-      const lastReflection = [...threadMessages].reverse().find((m) => m.isRealtimeReflection);
-
-      let reflectionTarget = trimmed;
-      if (lastReflection || trimmed.length > 1200) {
-        const sentences = trimmed.match(/[^.!?]+[.!?]+/g) || [];
-        const lastSentences = sentences.slice(-3).join('').trim();
-        reflectionTarget = lastSentences.length > 80 ? lastSentences : trimmed.slice(-400);
-      }
-
-      if (lastReflection) {
-        const lastReflectedContent = lastReflection.reflectedContent || '';
-        const sim = await getEmbeddingSimilarity(lastReflectedContent, reflectionTarget);
-        if (sim > reflectionSimilarityThreshold || reflectionTarget.length < reflectionMinLength) return;
-      }
-
-      let reflectionText = '';
-      let addedMessageId: string | null = null;
       try {
-        const stream = streamRealtimeReflection(reflectionTarget, entryId);
-        for await (const { token } of stream) {
-          if (cancelledRef.current) break;
-          if (!addedMessageId) {
-            addedMessageId = addMessage('ai', '', threadId, entryId, true, reflectionTarget);
+        setInferenceError(null);
+        setIsInferring(true);
+
+        // Check if local mode but provider not ready
+        const settings = useSettingsStore.getState();
+        if (settings.aiProvider === 'local' && !getGlobalLLMProvider()) {
+          setInferenceError(
+            'Local AI mode enabled but model not downloaded. Please download the model in Settings or switch to Cloud mode.'
+          );
+          setIsInferring(false);
+          return;
+        }
+
+        const threadMessages = useJournalStore.getState().messages.filter((m) => m.threadId === threadId);
+        const lastReflection = [...threadMessages].reverse().find((m) => m.isRealtimeReflection);
+
+        let reflectionTarget = trimmed;
+        if (lastReflection || trimmed.length > 1200) {
+          const sentences = trimmed.match(/[^.!?]+[.!?]+/g) || [];
+          const lastSentences = sentences.slice(-3).join('').trim();
+          reflectionTarget = lastSentences.length > 80 ? lastSentences : trimmed.slice(-400);
+        }
+
+        if (lastReflection) {
+          const lastReflectedContent = lastReflection.reflectedContent || '';
+          const sim = await getEmbeddingSimilarity(lastReflectedContent, reflectionTarget);
+          if (sim > reflectionSimilarityThreshold || reflectionTarget.length < reflectionMinLength) {
+            setIsInferring(false);
+            return;
           }
-          reflectionText += token;
+        }
+
+        let reflectionText = '';
+        let addedMessageId: string | null = null;
+        try {
+          const stream = streamRealtimeReflection(reflectionTarget, entryId);
+          for await (const { token } of stream) {
+            if (cancelledRef.current) break;
+            if (!addedMessageId) {
+              addedMessageId = addMessage('ai', '', threadId, entryId, true, reflectionTarget);
+            }
+            reflectionText += token;
+            useJournalStore.getState().updateMessageById(addedMessageId, reflectionText);
+          }
+        } catch (err) {
+          console.error('Error streaming realtime reflection:', err);
+          setInferenceError(err instanceof Error ? err.message : 'Failed to generate reflection');
+        }
+
+        if (!cancelledRef.current && reflectionText.trim() && addedMessageId) {
           useJournalStore.getState().updateMessageById(addedMessageId, reflectionText);
         }
+
+        setIsInferring(false);
       } catch (err) {
-        console.error('Error streaming realtime reflection:', err);
-      }
-      if (!cancelledRef.current && reflectionText.trim() && addedMessageId) {
-        useJournalStore.getState().updateMessageById(addedMessageId, reflectionText);
+        setInferenceError(err instanceof Error ? err.message : 'Unknown error');
+        setIsInferring(false);
       }
     };
 
@@ -82,4 +111,9 @@ export function useRealtimeReflection({
     reflectionSimilarityThreshold,
     reflectionMinLength,
   ]);
+
+  return {
+    isInferring,
+    inferenceError,
+  };
 }

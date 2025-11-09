@@ -22,32 +22,33 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, hasStartedEditing, threa
         useShallow((state: JournalState) => state.messages.filter((m) => m.threadId === threadId))
     );
 
-    const reflectionSimilarityThreshold = useSettingsStore((state) => state.reflectionSimilarityThreshold); // Use setting
-    const reflectionMinLength = useSettingsStore((state) => state.reflectionMinLength); // Use setting
+    const reflectionSimilarityThreshold = useSettingsStore((state) => state.reflectionSimilarityThreshold);
+    const reflectionMinLength = useSettingsStore((state) => state.reflectionMinLength);
+    const aiProvider = useSettingsStore((state) => state.aiProvider);
 
     // Mark all messages in this thread as read when the panel is rendered
     const markAllMessagesAsReadInThread = useJournalStore((state) => state.markAllMessagesAsReadInThread);
 
     useEffect(() => {
-        // Only mark as read when the panel is actually visible
-        if (isVisible) {
-            markAllMessagesAsReadInThread(threadId, { sender: 'ai' });
-        }
-    }, [threadId, isVisible]);
+      // Only mark as read when the panel is actually visible
+      if (isVisible) {
+        markAllMessagesAsReadInThread(threadId, { sender: 'ai' });
+      }
+    }, [threadId, isVisible, markAllMessagesAsReadInThread]);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
     const entry = entryId ? getEntryById(entryId) : undefined;
 
-    useRealtimeReflection({
-        entryId,
-        threadId,
-        content: entry?.content || '',
-        hasStartedEditing: !!hasStartedEditing,
-        reflectionSimilarityThreshold,
-        reflectionMinLength,
+    const { isInferring, inferenceError } = useRealtimeReflection({
+      entryId,
+      threadId,
+      content: entry?.content || '',
+      hasStartedEditing: !!hasStartedEditing,
+      reflectionSimilarityThreshold,
+      reflectionMinLength,
     });
 
 
@@ -57,8 +58,25 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, hasStartedEditing, threa
             <div className="flex items-center justify-start gap-2 px-4 pt-4 pb-2 border-b border-border/60 bg-background/80 rounded-t-xl flex-shrink-0">
                 <span className="h-2 w-2 rounded-full bg-primary/70 group-hover:bg-primary transition-colors" />
                 <h3 className="text-lg font-semibold text-primary-900 tracking-tight">Echo Chat</h3>
+                {isInferring && aiProvider === 'local' && (
+                    <span className="ml-auto text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <span className="animate-pulse">●</span>
+                        Local Processing
+                    </span>
+                )}
+                {isInferring && aiProvider === 'cloud' && (
+                    <span className="ml-auto text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        <span className="animate-pulse">●</span>
+                        Thinking...
+                    </span>
+                )}
             </div>
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 flex flex-col">
+                {inferenceError && (
+                    <div className="p-3 bg-destructive/10 border border-destructive rounded-lg mx-2">
+                        <p className="text-sm text-destructive font-medium">⚠️ {inferenceError}</p>
+                    </div>
+                )}
                 {messages.map((m) => {
                     const key = `${m.messageId}-${m.sender}`;
                     if (m.sender === 'user') {

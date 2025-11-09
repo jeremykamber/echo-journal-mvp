@@ -13,6 +13,10 @@ import { IterableReadableStreamInterface } from '@langchain/core/utils/stream';
 import { trackCompletedReflection } from "@/services/analyticsService";
 import makeMemoryService from '@/features/memory/services/memoryService';
 import { getNudgeService } from '@/services/nudgeServiceRegistry';
+import { getStreamingResponse } from '@/services/aiProviderWrapper';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getGlobalLLMProvider } from '@/services/llmProviders/adapterService';
+import { ChatMessage } from '@/services/llmProviders/interface';
 
 // Define types for reflection responses
 export interface RealtimeReflectionResponse {
@@ -27,6 +31,7 @@ const embedder = makeEmbedder();
 const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1000, chunkOverlap: 200 });
 /**
  * Streams a real-time reflection for a journal entry as tokens arrive.
+ * Uses configured LLM provider (local WebLLM or cloud OpenAI).
  * Yields each token as it arrives, and returns related entries as well.
  */
 export async function* streamRealtimeReflection(
@@ -85,18 +90,49 @@ I have found some past journal entries that might be relevant. Use these to prov
     );
 
     const formattedDocs = contextBundle; // small, token-efficient bundle returned by mem0/fallback
-    const chain = RunnableSequence.from([
-      prompt,
-      realtimeLlm,
-      new StringOutputParser(),
-    ]);
 
-    const stream = await chain.stream({
-      currentContent: content,
-      context: formattedDocs
-    });
+    // Check if using local provider and if it's ready
+    const settings = useSettingsStore.getState();
+    const isLocalMode = settings.aiProvider === 'local';
+    const provider = getGlobalLLMProvider();
+    const isProviderReady = isLocalMode && provider !== null;
 
-    for await (const token of stream) {
+    if (isLocalMode && !isProviderReady) {
+      // Warn user that model not downloaded
+      yield {
+        token: '⚠️ Local mode is enabled but the model hasn\'t been downloaded yet. Please download the model in Settings first, or switch to Cloud mode. Falling back to cloud inference.',
+        done: true,
+        relatedEntries,
+      };
+      return;
+    }
+
+    // Use the wrapper to route to appropriate provider
+    for await (const token of getStreamingResponse(
+      [
+        {
+          role: 'user',
+          content: `The user is currently writing this journal entry:\n\n${content}\n\nRelated context:\n\n${formattedDocs}`,
+        },
+      ] as ChatMessage[],
+      async function* () {
+        // Fallback: Use OpenAI with the prompt chain
+        const chain = RunnableSequence.from([
+          prompt,
+          realtimeLlm,
+          new StringOutputParser(),
+        ]);
+
+        const stream = await chain.stream({
+          currentContent: content,
+          context: formattedDocs,
+        });
+
+        for await (const token of stream) {
+          yield token;
+        }
+      }
+    )) {
       yield { token, done: false, relatedEntries };
     }
     yield { token: '', done: true, relatedEntries };
