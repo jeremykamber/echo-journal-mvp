@@ -54,30 +54,48 @@ export const AIProviderSettings: React.FC = () => {
   };
 
   const handleDownloadModel = async () => {
-    try {
-      setIsDownloading(true);
-      setDownloadError(null);
-      setDownloadProgress('Initializing...');
+    const MAX_RETRIES = 3;
+    let lastError: Error | null = null;
 
-      // Create provider with progress callback
-      await createLLMProvider({
-        mode: 'local',
-        modelId: localModelId,
-        initProgressCallback: (report) => {
-          setDownloadProgress(report.text);
-        },
-        autoInitialize: true,
-      });
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        setIsDownloading(true);
+        setDownloadError(null);
+        setDownloadProgress(`Initializing (Attempt ${attempt}/${MAX_RETRIES})...`);
 
-      setDownloadProgress('Model ready!');
-      setTimeout(() => {
-        setIsDownloading(false);
-      }, 2000);
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      setDownloadError(err);
-      setIsDownloading(false);
+        // Create provider with progress callback
+        await createLLMProvider({
+          mode: 'local',
+          modelId: localModelId,
+          initProgressCallback: (report) => {
+            setDownloadProgress(report.text);
+          },
+          autoInitialize: true,
+        });
+
+        setDownloadProgress('Model ready!');
+        setTimeout(() => {
+          setIsDownloading(false);
+        }, 2000);
+        return; // Success
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.error(`Download attempt ${attempt} failed:`, lastError);
+
+        if (attempt < MAX_RETRIES) {
+          // Wait before retrying with exponential backoff
+          const delayMs = Math.pow(2, attempt) * 1000;
+          setDownloadProgress(
+            `Attempt ${attempt} failed. Retrying in ${delayMs / 1000}s... (${delayMs / 1000}s)`
+          );
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
     }
+
+    // All retries failed
+    setDownloadError(lastError);
+    setIsDownloading(false);
   };
 
   return (
@@ -211,9 +229,12 @@ export const AIProviderSettings: React.FC = () => {
                 />
               ) : downloadError ? (
                 <>
-                  <div className="p-4 bg-destructive/10 border border-destructive rounded-lg">
+                  <div className="p-4 bg-destructive/10 border border-destructive rounded-lg space-y-2">
                     <p className="text-sm text-destructive font-medium">
-                      Download failed: {downloadError.message}
+                      ⚠️ Download failed
+                    </p>
+                    <p className="text-sm text-destructive whitespace-pre-wrap">
+                      {downloadError.message}
                     </p>
                   </div>
                   <Button
@@ -281,6 +302,35 @@ export const AIProviderSettings: React.FC = () => {
             <strong>Local (WebLLM):</strong> Runs open-source models directly in your browser using
             WebGPU acceleration. Great privacy, works offline, free to use. May be slower than cloud.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Troubleshooting Card */}
+      <Card className="bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-900">
+        <CardHeader>
+          <CardTitle className="text-orange-900 dark:text-orange-100 text-base">Troubleshooting</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-orange-800 dark:text-orange-200">
+          <div>
+            <p className="font-semibold">Model Download Failing?</p>
+            <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
+              <li>Check your internet connection - ensure it's stable and not rate-limited</li>
+              <li>Clear browser cache: Settings → Clear browsing data → Check "Cached images and files" → Clear</li>
+              <li>Try a smaller model first (1.5B size) to test if it's a network or device issue</li>
+              <li>Try switching to Cloud mode (OpenAI API) to verify the app still works</li>
+              <li>Check browser console (F12 → Console tab) for detailed error messages</li>
+              <li>Try a different browser if issues persist</li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-semibold">Model Too Slow or Browser Hanging?</p>
+            <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
+              <li>Try a smaller model (1.5B instead of 7B)</li>
+              <li>Ensure you have 8GB+ RAM available (check Task Manager/Activity Monitor)</li>
+              <li>Close other browser tabs and applications to free up memory</li>
+              <li>Use a Chromium-based browser (Chrome, Edge, Brave) for better performance</li>
+            </ul>
+          </div>
         </CardContent>
       </Card>
     </div>

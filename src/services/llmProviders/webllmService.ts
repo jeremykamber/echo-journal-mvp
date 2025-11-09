@@ -60,14 +60,35 @@ export class WebLLMService implements LLMProvider {
     this.isInitializing = true;
     try {
       const initProgressCallback = (report: webllm.InitProgressReport) => {
+        console.log('[WebLLM]', report.text);
         if (this.initProgress) {
           this.initProgress(report);
         }
       };
 
-      this.engine = await webllm.CreateMLCEngine(this.modelId, {
-        initProgressCallback,
-      });
+      try {
+        console.log(`[WebLLM] Initializing model: ${this.modelId}`);
+        this.engine = await webllm.CreateMLCEngine(this.modelId, {
+          initProgressCallback,
+        });
+        console.log('[WebLLM] Model initialized successfully');
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[WebLLM] Failed to initialize model: ${errorMessage}`);
+        
+        // Provide more helpful error messages
+        if (errorMessage.includes('Cache') || errorMessage.includes('network error')) {
+          throw new Error(
+            'Network error downloading model. This could be due to: ' +
+            '1) Unstable internet connection - please ensure you have stable internet and try again. ' +
+            '2) Browser storage/cache issues - try clearing browser cache (Settings > Clear browsing data > Cache) and reload. ' +
+            '3) Model repository temporarily unavailable - try again in a few moments. ' +
+            'Original error: ' + errorMessage
+          );
+        }
+        
+        throw error;
+      }
     } finally {
       this.isInitializing = false;
     }
