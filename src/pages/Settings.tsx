@@ -25,8 +25,6 @@ const SettingsScreen: React.FC = () => {
         trackSettingsChange(String(key)); // Track setting change
     };
 
-    const toggle = (key: keyof AppSettings) => (e: React.ChangeEvent<HTMLInputElement>) => setSetting(key, e.target.checked as any);
-
     React.useEffect(() => {
         const root = document.documentElement;
         if (settings.theme === 'dark') {
@@ -121,28 +119,79 @@ const SettingsScreen: React.FC = () => {
                     <div className="space-y-4 pt-6 border-t border-border">
                         <ExportEntriesButton />
                     </div>
-                    {/* Auto-reflect Toggle Section */}
-                    <div className="mt-6 space-y-3">
-                        <label className="flex items-center gap-2">
-                            <input type="checkbox" checked={settings.autoReflect} onChange={(e) => setSetting('autoReflect', e.target.checked)} />
-                            <span className="ml-2">Auto reflect on entries</span>
-                        </label>
-                        <label className="flex items-center gap-2">
-                            <input type="checkbox" checked={(settings as any).enableMemories} onChange={toggle('enableMemories' as any)} />
-                            <span className="ml-2">Enable Memories (local & sync)</span>
-                        </label>
-                        <label className="flex items-center gap-2">
-                            <input type="checkbox" checked={(settings as any).showNudges} onChange={toggle('showNudges' as any)} />
-                            <span className="ml-2">Show contextual nudges</span>
-                        </label>
-                        <label className="flex items-center gap-2">
-                            <input type="checkbox" checked={(settings as any).enableWhisper} onChange={toggle('enableWhisper' as any)} />
-                            <span className="ml-2">Enable audio capture (Whisper)</span>
-                        </label>
-                        <label className="flex items-center gap-2">
-                            <input type="checkbox" checked={(settings as any).enableSharing} onChange={toggle('enableSharing' as any)} />
-                            <span className="ml-2">Enable anonymized sharing</span>
-                        </label>
+                    {/* Feature Toggles Section */}
+                    <div className="space-y-4 pt-6 border-t border-border">
+                        <h3 className="text-lg font-semibold">Features</h3>
+                        
+                        <div className="flex items-start space-x-3">
+                            <Checkbox
+                                id="autoReflect"
+                                checked={settings.autoReflect}
+                                onCheckedChange={(checked) => handleSettingChange('autoReflect', !!checked)}
+                            />
+                            <div className="space-y-1">
+                                <Label htmlFor="autoReflect">Auto Reflect on Entries</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Automatically generate reflections as you write in your journal.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start space-x-3">
+                            <Checkbox
+                                id="enableMemories"
+                                checked={(settings as any).enableMemories}
+                                onCheckedChange={(checked) => handleSettingChange('enableMemories', !!checked)}
+                            />
+                            <div className="space-y-1">
+                                <Label htmlFor="enableMemories">Enable Memories</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Store and sync your memories locally and across devices.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start space-x-3">
+                            <Checkbox
+                                id="showNudges"
+                                checked={(settings as any).showNudges}
+                                onCheckedChange={(checked) => handleSettingChange('showNudges', !!checked)}
+                            />
+                            <div className="space-y-1">
+                                <Label htmlFor="showNudges">Show Contextual Nudges</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Receive helpful prompts and suggestions based on your journal entries.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start space-x-3">
+                            <Checkbox
+                                id="enableWhisper"
+                                checked={(settings as any).enableWhisper}
+                                onCheckedChange={(checked) => handleSettingChange('enableWhisper', !!checked)}
+                            />
+                            <div className="space-y-1">
+                                <Label htmlFor="enableWhisper">Enable Voice Input (Whisper)</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Record and transcribe your voice directly into journal entries using AI.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start space-x-3">
+                            <Checkbox
+                                id="enableSharing"
+                                checked={(settings as any).enableSharing}
+                                onCheckedChange={(checked) => handleSettingChange('enableSharing', !!checked)}
+                            />
+                            <div className="space-y-1">
+                                <Label htmlFor="enableSharing">Enable Anonymized Sharing</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Allow your anonymized entries to be used for improving the service.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

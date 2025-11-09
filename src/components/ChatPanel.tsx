@@ -5,6 +5,7 @@ import { parseReflectionWithCitations } from '@/lib/parseReflectionWithCitations
 import { useShallow } from 'zustand/shallow';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useRealtimeReflection } from '@/hooks/useRealtimeReflection';
+import { VoiceInput } from '@/components/VoiceInput';
 
 interface ChatPanelProps {
     entryId?: string;
@@ -25,9 +26,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, hasStartedEditing, threa
     const reflectionSimilarityThreshold = useSettingsStore((state) => state.reflectionSimilarityThreshold);
     const reflectionMinLength = useSettingsStore((state) => state.reflectionMinLength);
     const aiProvider = useSettingsStore((state) => state.aiProvider);
+    const enableWhisper = useSettingsStore((state) => (state as any).enableWhisper);
 
     // Mark all messages in this thread as read when the panel is rendered
     const markAllMessagesAsReadInThread = useJournalStore((state) => state.markAllMessagesAsReadInThread);
+
+    const handleVoiceTranscribed = (text: string) => {
+      // Add the transcribed text as a user message
+      addMessage('user', text, threadId, entryId);
+    };
 
     useEffect(() => {
       // Only mark as read when the panel is actually visible
@@ -101,6 +108,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, hasStartedEditing, threa
                 })}
                 <div ref={messagesEndRef} />
             </div>
+
+            {/* Voice Input Section - visible when Whisper is enabled */}
+            {enableWhisper && (
+                <div className="px-4 py-3 border-t border-border/60 bg-background/80 rounded-b-xl flex-shrink-0">
+                    <VoiceInput
+                        onTranscribed={handleVoiceTranscribed}
+                        className="w-full"
+                    />
+                </div>
+            )}
         </>
     );
 };
