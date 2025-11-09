@@ -12,6 +12,15 @@ export interface AppSettings {
     enableWhisper: boolean;
     enableSharing: boolean;
     completedTours: string[];
+    /**
+     * AI provider mode: 'cloud' uses OpenAI API, 'local' uses WebLLM.
+     */
+    aiProvider: 'cloud' | 'local';
+    /**
+     * Selected local model ID when aiProvider is 'local'.
+     * One of the AVAILABLE_MODELS from providerFactory.
+     */
+    localModelId: string;
 }
 
 interface SettingsState extends AppSettings {
@@ -30,6 +39,8 @@ const defaultSettings: AppSettings = {
     enableWhisper: false,
     enableSharing: false,
     completedTours: [],
+    aiProvider: 'cloud',
+    localModelId: 'Qwen2-1.5B-Instruct-q4f32_1-MLC',
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -54,6 +65,8 @@ export const useSettingsStore = create<SettingsState>()(
                 enableWhisper: state.enableWhisper,
                 enableSharing: state.enableSharing,
                 completedTours: state.completedTours,
+                aiProvider: state.aiProvider,
+                localModelId: state.localModelId,
             }),
         }
     )

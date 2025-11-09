@@ -1315,7 +1315,13 @@ export const getUserSettings = async (): Promise<{ settings: AppSettings | null;
         theme: 'system',
         showReflectionLabels: true,
         autoReflect: true,
-        completedTours: []
+        enableMemories: true,
+        showNudges: true,
+        enableWhisper: false,
+        enableSharing: false,
+        completedTours: [],
+        aiProvider: 'cloud',
+        localModelId: 'Qwen2-1.5B-Instruct-q4f32_1-MLC',
       };
 
       await supabase
@@ -1332,7 +1338,13 @@ export const getUserSettings = async (): Promise<{ settings: AppSettings | null;
       theme: data.theme as 'system' | 'light' | 'dark',
       showReflectionLabels: data.show_reflection_labels,
       autoReflect: data.auto_reflect,
-      completedTours: data.completed_tours || []
+      enableMemories: data.enable_memories ?? true,
+      showNudges: data.show_nudges ?? true,
+      enableWhisper: data.enable_whisper ?? false,
+      enableSharing: data.enable_sharing ?? false,
+      completedTours: data.completed_tours || [],
+      aiProvider: data.ai_provider ?? 'cloud',
+      localModelId: data.local_model_id ?? 'Qwen2-1.5B-Instruct-q4f32_1-MLC',
     };
 
     return { settings, error: null };
