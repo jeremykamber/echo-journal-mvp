@@ -1,7 +1,7 @@
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
 // import { ChatOllama, OllamaEmbeddings } from '@langchain/ollama';
-import { ChatOpenAI } from '@langchain/openai';
+import { makeChatClient, makeRealtimeChatClient, makeEmbedder } from '@/clients/openaiClient';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
@@ -10,8 +10,9 @@ import journalStore, { JournalEntry } from '@/store/journalStore';
 import conversationStore from '@/store/conversationStore';
 import { Document } from 'langchain/document';
 import { IterableReadableStreamInterface } from '@langchain/core/utils/stream';
-import { OpenAIEmbeddings } from "@langchain/openai";
 import { trackCompletedReflection } from "@/services/analyticsService";
+import makeMemoryService from '@/features/memory/services/memoryService';
+import { getNudgeService } from '@/services/nudgeServiceRegistry';
 
 // Define types for reflection responses
 export interface RealtimeReflectionResponse {
@@ -19,84 +20,11 @@ export interface RealtimeReflectionResponse {
   relatedEntries: JournalEntry[];
 }
 
-const llm = new ChatOpenAI({
-  model: 'gpt-4.1-mini',
-  streaming: true,
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-});
-
-const realtimeLlm = new ChatOpenAI({
-  model: 'gpt-4.1-nano',
-  streaming: true,
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-});
-
-//const llm = new ChatOllama({
-//  model: 'qwen2.5:3b',
-//  temperature: 0.5,
-//  streaming: true,
-//});
-//
-//const realtimeLlm = new ChatOllama({
-//  model: 'granite3.1-moe',
-//  temperature: 0.5,
-//  streaming: true,
-//});
+const llm = makeChatClient({ model: 'gpt-4.1-mini' });
+const realtimeLlm = makeRealtimeChatClient({ model: 'gpt-4.1-nano' });
+const embedder = makeEmbedder();
 
 const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1000, chunkOverlap: 200 });
-// Using OpenAI's lightweight embedding model
-const embedder = new OpenAIEmbeddings({
-  model: "text-embedding-ada-002",
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-});
-
-// Cache for vector store to avoid rebuilding for each request
-let vectorStoreCache: MemoryVectorStore | null = null;
-let lastCacheUpdate = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Gets or builds a vector store from journal entries
- */
-async function getVectorStore(): Promise<MemoryVectorStore> {
-  const now = Date.now();
-
-  // If cache is valid, return it
-  if (vectorStoreCache && (now - lastCacheUpdate < CACHE_TTL)) {
-    return vectorStoreCache;
-  }
-
-  // Build a new vector store
-  const store = new MemoryVectorStore(embedder);
-
-  // Load entries from Zustand store
-  const entries = journalStore.getState().entries;
-
-  // Skip if no entries
-  if (entries.length === 0) {
-    return store;
-  }
-
-  // Prepare documents with metadata
-  const docs = entries.map(e => new Document({
-    pageContent: e.content,
-    metadata: { entryId: e.id }
-  }));
-
-  // Split large entries
-  const splits = await splitter.splitDocuments(docs);
-
-  // Store in vector store
-  await store.addDocuments(splits);
-
-  // Save to cache
-  vectorStoreCache = store;
-  lastCacheUpdate = now;
-
-  return store;
-}
-
-
 /**
  * Streams a real-time reflection for a journal entry as tokens arrive.
  * Yields each token as it arrives, and returns related entries as well.
@@ -110,24 +38,11 @@ export async function* streamRealtimeReflection(
       return;
     }
 
-    const vectorStore = await getVectorStore();
-    const retriever = vectorStore.asRetriever(4);
-    const relevantDocs = await retriever.invoke(content);
-
-    const entryIds = new Set<string>();
-    relevantDocs.forEach(doc => {
-      if (doc.metadata.entryId && doc.metadata.entryId !== entryId) {
-        entryIds.add(doc.metadata.entryId);
-      }
-    });
-
-    const relatedEntries: JournalEntry[] = [];
-    entryIds.forEach(id => {
-      const entry = journalStore.getState().entries.find(e => e.id === id);
-      if (entry) relatedEntries.push(entry);
-    });
-
-    if (relatedEntries.length === 0) {
+    // Prefer mem0 for context; fall back to summarized journal snippet when empty
+    const memoryService = makeMemoryService();
+    const { contextBundle, relatedEntries } = await memoryService.getPromptContext(content, { userId: undefined, n: 4 });
+    if (!contextBundle || relatedEntries.length === 0) {
+      // Nothing useful to reference
       return;
     }
 
@@ -169,7 +84,7 @@ I have found some past journal entries that might be relevant. Use these to prov
 `
     );
 
-    const formattedDocs = formatDocumentsAsString(relevantDocs);
+    const formattedDocs = contextBundle; // small, token-efficient bundle returned by mem0/fallback
     const chain = RunnableSequence.from([
       prompt,
       realtimeLlm,
@@ -283,7 +198,10 @@ export async function* streamReflectionTokens(question: string, conversationId: 
       \n\n
 `
   );
-  const formattedDocs = formatDocumentsAsString(validSplits);
+  // Use mem0-first context bundle for prompt; fall back to local vectorized context when mem0 empty
+  const memoryService = makeMemoryService();
+  const { contextBundle } = await memoryService.getPromptContext(question, { userId: undefined, n: 4 });
+  const formattedDocs = contextBundle || formatDocumentsAsString(validSplits);
   const chain = RunnableSequence.from([
     prompt,
     llm,
@@ -331,10 +249,30 @@ export async function streamReflectionToStore({
     }
     // Final update to ensure all text is saved
     updateAIMessage(aiMsgId, accumulatedText);
+    try {
+      // Auto-save the completed reflection text to mem0 (client-side testing)
+      // Provide entryId/aiMessageId so it can be referenced later
+      void (await import('@/services/memoryAutoSave')).autoSaveReflection(accumulatedText, { entryId, aiMessageId: aiMsgId });
+    } catch (err) {
+      console.warn('autoSaveReflection failed:', err);
+    }
     console.log(`Completed streaming for conversation ${targetId}`);
 
     // Track completion of reflection
     trackCompletedReflection('Conversation');
+    try {
+      const showNudges = (await import('@/store/settingsStore')).useSettingsStore.getState().autoReflect;
+      if (showNudges) {
+        const nudgeService = getNudgeService();
+        const nudges = await nudgeService.generateNudgesForReflection(accumulatedText, undefined, undefined);
+        if (nudges && nudges.length > 0) {
+          const nudgeStore = (await import('@/store/nudgeStore'));
+          nudgeStore.useNudgeStore.getState().showNudge(nudges[0]);
+        }
+      }
+    } catch (err) {
+      console.warn('nudge generate/dispatch failed', err);
+    }
   } else {
     const addAIMessage = journalStore.getState().addMessage;
     const updateAIMessage = journalStore.getState().updateMessageById;
@@ -353,9 +291,27 @@ export async function streamReflectionToStore({
     }
     // Final update to ensure all text is saved
     updateAIMessage(aiMsgId, accumulatedText);
+    try {
+      void (await import('@/services/memoryAutoSave')).autoSaveReflection(accumulatedText, { entryId, aiMessageId: aiMsgId });
+    } catch (err) {
+      console.warn('autoSaveReflection failed:', err);
+    }
     console.log(`Completed streaming for journal entry ${entryId} and target ${targetId} `);
 
     // Track completion of reflection
     trackCompletedReflection('Journal');
+    try {
+      const showNudges = (await import('@/store/settingsStore')).useSettingsStore.getState().autoReflect;
+      if (showNudges) {
+        const nudgeService = getNudgeService();
+        const nudges = await nudgeService.generateNudgesForReflection(accumulatedText, entryId, undefined);
+        if (nudges && nudges.length > 0) {
+          const nudgeStore = (await import('@/store/nudgeStore'));
+          nudgeStore.useNudgeStore.getState().showNudge(nudges[0]);
+        }
+      }
+    } catch (err) {
+      console.warn('nudge generate/dispatch failed', err);
+    }
   }
 }

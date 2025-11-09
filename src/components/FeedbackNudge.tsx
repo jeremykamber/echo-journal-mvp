@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "./ui/textarea";
 import { trackEvent, trackAppSatisfactionFeedback, trackAppSatisfactionDetailedFeedback } from '@/lib/analytics';
 import useFeedbackNudge from '@/features/feedback/hooks/useFeedbackNudge';
+import { useServices } from '@/providers/ServiceProvider';
 
 // Custom event name for reflection viewing
 const REFLECTION_VIEWED_EVENT = 'reflection_viewed';
@@ -15,9 +16,11 @@ const FeedbackNudge: React.FC = () => {
   const [feedback, setFeedback] = useState("");
   const [hasShownNudge, setHasShownNudge] = useState(false);
 
-  // Use local storage to track if we've already shown the nudge in this session
+  const { sessionService } = useServices();
+
+  // Use sessionService to track if we've already shown the nudge in this session
   useEffect(() => {
-    const nudgeShown = localStorage.getItem('feedbackNudgeShown');
+    const nudgeShown = sessionService.getItem('feedbackNudgeShown');
     if (nudgeShown) {
       setHasShownNudge(true);
     }
@@ -29,7 +32,7 @@ const FeedbackNudge: React.FC = () => {
         setTimeout(() => {
           setIsNudgeOpen(true);
           setHasShownNudge(true);
-          localStorage.setItem('feedbackNudgeShown', 'true');
+          sessionService.setItem('feedbackNudgeShown', 'true');
           trackEvent('Feedback', 'NudgeDisplayed', 'AfterReflectionView');
         }, 1500); // Delay to ensure user has had time to read the reflection
       }
@@ -42,7 +45,7 @@ const FeedbackNudge: React.FC = () => {
     return () => {
       document.removeEventListener(REFLECTION_VIEWED_EVENT, handleReflectionViewed);
     };
-  }, [hasShownNudge]);
+  }, [hasShownNudge, sessionService]);
 
   const { submitEmoji, submitFeedback } = useFeedbackNudge();
 

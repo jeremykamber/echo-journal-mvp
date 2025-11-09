@@ -24,6 +24,8 @@ const SettingsScreen: React.FC = () => {
         trackSettingsChange(String(key)); // Track setting change
     };
 
+    const toggle = (key: keyof AppSettings) => (e: React.ChangeEvent<HTMLInputElement>) => setSetting(key, e.target.checked as any);
+
     React.useEffect(() => {
         const root = document.documentElement;
         if (settings.theme === 'dark') {
@@ -114,18 +116,27 @@ const SettingsScreen: React.FC = () => {
                         <ExportEntriesButton />
                     </div>
                     {/* Auto-reflect Toggle Section */}
-                    <div className="flex items-start space-x-4">
-                        <Checkbox
-                            id="autoReflect"
-                            checked={settings.autoReflect}
-                            onCheckedChange={(checked) => handleSettingChange('autoReflect', !!checked)}
-                        />
-                        <div className="space-y-1">
-                            <Label htmlFor="autoReflect">Auto-reflect</Label>
-                            <p className="text-sm text-muted-foreground">
-                                Enable reflections to open automatically as you type.
-                            </p>
-                        </div>
+                    <div className="mt-6 space-y-3">
+                        <label className="flex items-center gap-2">
+                            <input type="checkbox" checked={settings.autoReflect} onChange={(e) => setSetting('autoReflect', e.target.checked)} />
+                            <span className="ml-2">Auto reflect on entries</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                            <input type="checkbox" checked={(settings as any).enableMemories} onChange={toggle('enableMemories' as any)} />
+                            <span className="ml-2">Enable Memories (local & sync)</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                            <input type="checkbox" checked={(settings as any).showNudges} onChange={toggle('showNudges' as any)} />
+                            <span className="ml-2">Show contextual nudges</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                            <input type="checkbox" checked={(settings as any).enableWhisper} onChange={toggle('enableWhisper' as any)} />
+                            <span className="ml-2">Enable audio capture (Whisper)</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                            <input type="checkbox" checked={(settings as any).enableSharing} onChange={toggle('enableSharing' as any)} />
+                            <span className="ml-2">Enable anonymized sharing</span>
+                        </label>
                     </div>
                 </div>
             </div>

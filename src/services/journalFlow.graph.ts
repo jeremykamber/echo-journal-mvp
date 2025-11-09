@@ -1,4 +1,3 @@
-import { ChatOllama } from '@langchain/ollama';
 import {
     StateGraph,
     Annotation,
@@ -8,7 +7,7 @@ import {
 } from '@langchain/langgraph/web';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
-import { OllamaEmbeddings } from '@langchain/ollama';
+import { makeChatOllama, makeOllamaEmbeddings } from '@/clients/ollamaClient';
 import { saveJournalEntry, saveReflection } from './entryService';
 
 // Define the graph state with annotations
@@ -25,7 +24,7 @@ const graphState = Annotation.Root({
 });
 
 // Initialize LLM and text splitter
-const chatModel = new ChatOllama({ model: 'qwen2.5:3b' });
+const chatModel = makeChatOllama({ model: 'qwen2.5:3b' });
 const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1000, chunkOverlap: 200 });
 
 // Build the state graph
@@ -45,7 +44,7 @@ workflow.addNode('SplitText', async (state) => {
 
 // Node 3: Build vector store in-memory
 workflow.addNode('UpsertVectors', async (state) => {
-    const embedder = new OllamaEmbeddings({ model: 'nomic-embed-text' });
+    const embedder = makeOllamaEmbeddings({ model: 'nomic-embed-text' });
     const store = await MemoryVectorStore.fromDocuments(state.docs, embedder);
     return { vectorStore: store };
 });

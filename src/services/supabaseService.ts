@@ -117,6 +117,8 @@ import { AppSettings } from '@/store/settingsStore';
 import { JournalEntry, Message } from '@/store/journalStore';
 import { Conversation } from '@/store/conversationStore';
 import { insertAppFeedback } from '@/clients/supabaseClient';
+import { autoSaveJournalEntry, autoSaveMessage } from '@/services/memoryAutoSave';
+import { defaultSessionService } from '@/services/sessionService';
 
 // Keep env guard values for local-dev short-circuit checks used elsewhere
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -238,10 +240,7 @@ export const submitAppFeedback = async (
     }
 
     // Enrich with session id
-    if (!localStorage.getItem('sessionId')) {
-      localStorage.setItem('sessionId', `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
-    }
-    const sessionId = localStorage.getItem('sessionId') || undefined;
+    const sessionId = defaultSessionService.ensureSessionId();
 
     // Attempt insert via the clients layer
     const res = await insertAppFeedback({
@@ -576,6 +575,13 @@ export const createJournalEntry = async (
       date: data.date,
       chatId: entry.chatId
     };
+
+    // Fire-and-forget: auto-save the newly created entry into mem0 (client-side)
+    try {
+      void autoSaveJournalEntry(createdEntry);
+    } catch (err) {
+      console.warn('autoSaveJournalEntry failed:', err);
+    }
 
     return { entry: createdEntry, error: null };
   } catch (error) {
@@ -1078,6 +1084,13 @@ export const addMessage = async (
       isRead: data.is_read
     };
 
+    // Fire-and-forget: auto-save the created message into mem0 for testing
+    try {
+      void autoSaveMessage(createdMessage);
+    } catch (err) {
+      console.warn('autoSaveMessage failed:', err);
+    }
+
     return { message: createdMessage, error: null };
   } catch (error) {
     console.error('Exception adding message:', error);
@@ -1424,4 +1437,18 @@ export const markTourCompleted = async (
         .update({ completed_tours: completedTours })
         .eq('user_id', user.id);
 
-      if
+      if (error) throw new SupabaseError('Failed to update user settings', error);
+    }
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Exception marking tour as completed:', error);
+    return {
+      success: false,
+      error: error instanceof SupabaseError ? error : new SupabaseError(
+        'Failed to mark tour as completed',
+        error instanceof Error ? error : new Error(String(error))
+      )
+    };
+  }
+};

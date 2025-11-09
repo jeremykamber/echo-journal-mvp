@@ -7,6 +7,10 @@ export interface AppSettings {
     theme: 'system' | 'light' | 'dark';
     showReflectionLabels: boolean;
     autoReflect: boolean;
+    enableMemories: boolean;
+    showNudges: boolean;
+    enableWhisper: boolean;
+    enableSharing: boolean;
     completedTours: string[];
 }
 
@@ -21,6 +25,10 @@ const defaultSettings: AppSettings = {
     theme: 'system',
     showReflectionLabels: true,
     autoReflect: true,
+    enableMemories: true,
+    showNudges: true,
+    enableWhisper: false,
+    enableSharing: false,
     completedTours: [],
 };
 
@@ -41,6 +49,10 @@ export const useSettingsStore = create<SettingsState>()(
                 theme: state.theme,
                 showReflectionLabels: state.showReflectionLabels,
                 autoReflect: state.autoReflect,
+                enableMemories: state.enableMemories,
+                showNudges: state.showNudges,
+                enableWhisper: state.enableWhisper,
+                enableSharing: state.enableSharing,
                 completedTours: state.completedTours,
             }),
         }

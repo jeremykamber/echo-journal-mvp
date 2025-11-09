@@ -2,19 +2,13 @@
 // Wraps LLM interactions (embeddings & chat) with easy swap between Ollama and OpenAI
 
 // Chat models
-import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
-export const chatClient = new ChatOpenAI({
-    model: 'gpt-5-nano',
-    // apiKey: process.env.OPENAI_API_KEY,
-});
+import { makeChatClient, makeEmbedder } from '@/clients/openaiClient';
+export const chatClient = makeChatClient({ model: 'gpt-5-nano' });
 /**
  * Get cosine similarity between two texts using Ollama embeddings via LangChain
  */
 export async function getEmbeddingSimilarity(textA: string, textB: string): Promise<number> {
-    const embedder = new OpenAIEmbeddings({
-        modelName: 'text-embedding-ada-002',
-        openAIApiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    });
+    const embedder = makeEmbedder({ model: 'text-embedding-ada-002' });
     const [vecA, vecB] = await embedder.embedDocuments([textA, textB]);
 
     // Compute cosine similarity

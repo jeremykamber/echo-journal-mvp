@@ -1,0 +1,1330 @@
+Now I have comprehensive information to create a detailed tutorial. Let me compile this into a full, detailed guide for using mem0 OSS (open source version) with React, running locally.
+
+## Complete Tutorial: Using Mem0 OSS with React Locally
+
+This comprehensive guide will walk you through setting up and using the open-source version of Mem0 with React, running entirely on your local machine. Mem0 is a memory layer for AI applications that enables persistent, context-aware interactions by storing and retrieving conversation history and user preferences.[1][2]
+
+### What is Mem0 OSS?
+
+Mem0 Open Source is a self-hosted memory management system that provides full control and customization for AI applications. Unlike the managed platform, the OSS version allows you to run everything locally, giving you complete data privacy and infrastructure control. It stores memories using vector databases and can integrate with various LLM providers.[3][2][4][1]
+
+### Architecture Overview
+
+The architecture consists of:
+- **Frontend**: React application for user interface
+- **Backend**: Node.js/Express server with Mem0 integration
+- **Vector Database**: Qdrant running locally via Docker
+- **LLM Provider**: OpenAI (or local alternatives like Ollama)
+- **Embeddings**: OpenAI text-embedding models (or local alternatives)
+
+### Prerequisites
+
+Before starting, ensure you have:
+- Node.js 18+ and npm installed
+- Docker and Docker Compose installed
+- OpenAI API key (or configure local LLM alternatives)
+- Basic knowledge of React and Node.js
+- Terminal/command line access
+
+## Part 1: Setting Up the Local Infrastructure
+
+### Step 1: Install and Run Qdrant Vector Database
+
+Qdrant will store the vector embeddings of your memories locally.[5][6]
+
+**Create a Docker Compose file for Qdrant:**
+
+```bash
+mkdir mem0-react-app
+cd mem0-react-app
+mkdir qdrant
+cd qdrant
+```
+
+Create `docker-compose.yml`:
+
+```yaml
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"  # REST API
+      - "6334:6334"  # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  qdrant_data:
+    driver: local
+```
+
+**Start Qdrant:**
+
+```bash
+docker compose up -d
+```
+
+Verify Qdrant is running by visiting `http://localhost:6333/dashboard` in your browser.[6][7][5]
+
+### Step 2: Project Setup
+
+Navigate back to your project root and create the project structure:
+
+```bash
+cd ..
+mkdir backend frontend
+```
+
+## Part 2: Backend Setup with Mem0
+
+### Step 3: Initialize Backend
+
+```bash
+cd backend
+npm init -y
+```
+
+### Step 4: Install Backend Dependencies
+
+```bash
+npm install express cors mem0ai dotenv
+npm install --save-dev nodemon
+```
+
+**Dependencies explained:**
+- `express`: Web framework for Node.js
+- `cors`: Enable Cross-Origin Resource Sharing
+- `mem0ai`: Mem0 library for memory management[8][9]
+- `dotenv`: Environment variable management
+- `nodemon`: Auto-restart server on changes
+
+### Step 5: Configure Backend
+
+Create `.env` file in the backend directory:
+
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+PORT=5000
+```
+
+Update `package.json` to add scripts and enable ES modules:
+
+```json
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "mem0ai": "latest",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+```
+
+### Step 6: Create Backend Server
+
+Create `server.js`:
+
+```javascript
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { Memory } from 'mem0ai/oss';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Initialize Mem0 with local Qdrant configuration
+const memoryConfig = {
+  version: 'v1.1',
+  vectorStore: {
+    provider: 'qdrant',
+    config: {
+      collectionName: 'memories',
+      host: 'localhost',
+      port: 6333,
+      embedding_model_dims: 1536, // OpenAI text-embedding-3-small dimensions
+    },
+  },
+  llm: {
+    provider: 'openai',
+    config: {
+      apiKey: process.env.OPENAI_API_KEY,
+      model: 'gpt-4o-mini',
+      temperature: 0.2,
+      maxTokens: 2000,
+    },
+  },
+  embedder: {
+    provider: 'openai',
+    config: {
+      apiKey: process.env.OPENAI_API_KEY,
+      model: 'text-embedding-3-small',
+    },
+  },
+};
+
+// Initialize memory instance
+let memory;
+try {
+  memory = new Memory(memoryConfig);
+  console.log('✅ Mem0 initialized successfully');
+} catch (error) {
+  console.error('❌ Error initializing Mem0:', error);
+  process.exit(1);
+}
+
+// API Routes
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Server is running' });
+});
+
+// Add memories
+app.post('/api/memories/add', async (req, res) => {
+  try {
+    const { messages, userId, metadata } = req.body;
+    
+    if (!messages || !userId) {
+      return res.status(400).json({ 
+        error: 'Messages and userId are required' 
+      });
+    }
+
+    const result = await memory.add(messages, { 
+      userId, 
+      metadata: metadata || {} 
+    });
+    
+    res.json({ 
+      success: true, 
+      data: result 
+    });
+  } catch (error) {
+    console.error('Error adding memory:', error);
+    res.status(500).json({ 
+      error: 'Failed to add memory',
+      details: error.message 
+    });
+  }
+});
+
+// Get all memories for a user
+app.get('/api/memories/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const memories = await memory.getAll({ userId });
+    
+    res.json({ 
+      success: true, 
+      data: memories 
+    });
+  } catch (error) {
+    console.error('Error fetching memories:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch memories',
+      details: error.message 
+    });
+  }
+});
+
+// Search memories
+app.post('/api/memories/search', async (req, res) => {
+  try {
+    const { query, userId, limit } = req.body;
+    
+    if (!query || !userId) {
+      return res.status(400).json({ 
+        error: 'Query and userId are required' 
+      });
+    }
+
+    const results = await memory.search(query, { 
+      userId, 
+      limit: limit || 5 
+    });
+    
+    res.json({ 
+      success: true, 
+      data: results 
+    });
+  } catch (error) {
+    console.error('Error searching memories:', error);
+    res.status(500).json({ 
+      error: 'Failed to search memories',
+      details: error.message 
+    });
+  }
+});
+
+// Get single memory by ID
+app.get('/api/memories/:memoryId', async (req, res) => {
+  try {
+    const { memoryId } = req.params;
+    const result = await memory.get(memoryId);
+    
+    res.json({ 
+      success: true, 
+      data: result 
+    });
+  } catch (error) {
+    console.error('Error fetching memory:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch memory',
+      details: error.message 
+    });
+  }
+});
+
+// Update memory
+app.put('/api/memories/:memoryId', async (req, res) => {
+  try {
+    const { memoryId } = req.params;
+    const { content } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ 
+        error: 'Content is required' 
+      });
+    }
+
+    const result = await memory.update(memoryId, content);
+    
+    res.json({ 
+      success: true, 
+      data: result 
+    });
+  } catch (error) {
+    console.error('Error updating memory:', error);
+    res.status(500).json({ 
+      error: 'Failed to update memory',
+      details: error.message 
+    });
+  }
+});
+
+// Delete memory
+app.delete('/api/memories/:memoryId', async (req, res) => {
+  try {
+    const { memoryId } = req.params;
+    await memory.delete(memoryId);
+    
+    res.json({ 
+      success: true, 
+      message: 'Memory deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Error deleting memory:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete memory',
+      details: error.message 
+    });
+  }
+});
+
+// Delete all memories for a user
+app.delete('/api/memories/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    await memory.deleteAll({ userId });
+    
+    res.json({ 
+      success: true, 
+      message: 'All memories deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Error deleting memories:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete memories',
+      details: error.message 
+    });
+  }
+});
+
+// Get memory history
+app.get('/api/memories/:memoryId/history', async (req, res) => {
+  try {
+    const { memoryId } = req.params;
+    const history = await memory.history(memoryId);
+    
+    res.json({ 
+      success: true, 
+      data: history 
+    });
+  } catch (error) {
+    console.error('Error fetching memory history:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch memory history',
+      details: error.message 
+    });
+  }
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
+```
+
+### Step 7: Test Backend
+
+Start the backend server:
+
+```bash
+npm run dev
+```
+
+Test the health endpoint:
+
+```bash
+curl http://localhost:5000/api/health
+```
+
+You should see: `{"status":"ok","message":"Server is running"}`[9][8]
+
+## Part 3: React Frontend Setup
+
+### Step 8: Create React App
+
+Open a new terminal and navigate to the frontend directory:
+
+```bash
+cd ../frontend
+npx create-react-app .
+```
+
+### Step 9: Install Frontend Dependencies
+
+```bash
+npm install axios
+```
+
+### Step 10: Create API Service
+
+Create `src/services/memoryService.js`:
+
+```javascript
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:5000/api';
+
+const memoryService = {
+  // Add memories
+  addMemory: async (messages, userId, metadata = {}) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/memories/add`, {
+        messages,
+        userId,
+        metadata,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding memory:', error);
+      throw error;
+    }
+  },
+
+  // Get all memories for user
+  getUserMemories: async (userId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/memories/user/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching memories:', error);
+      throw error;
+    }
+  },
+
+  // Search memories
+  searchMemories: async (query, userId, limit = 5) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/memories/search`, {
+        query,
+        userId,
+        limit,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error searching memories:', error);
+      throw error;
+    }
+  },
+
+  // Get single memory
+  getMemory: async (memoryId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/memories/${memoryId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching memory:', error);
+      throw error;
+    }
+  },
+
+  // Update memory
+  updateMemory: async (memoryId, content) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/memories/${memoryId}`, {
+        content,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating memory:', error);
+      throw error;
+    }
+  },
+
+  // Delete memory
+  deleteMemory: async (memoryId) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/memories/${memoryId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting memory:', error);
+      throw error;
+    }
+  },
+
+  // Delete all user memories
+  deleteAllUserMemories: async (userId) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/memories/user/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting all memories:', error);
+      throw error;
+    }
+  },
+
+  // Get memory history
+  getMemoryHistory: async (memoryId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/memories/${memoryId}/history`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching memory history:', error);
+      throw error;
+    }
+  },
+};
+
+export default memoryService;
+```
+
+### Step 11: Create Chat Component
+
+Create `src/components/Chat.js`:
+
+```javascript
+import React, { useState, useEffect } from 'react';
+import memoryService from '../services/memoryService';
+import './Chat.css';
+
+const Chat = () => {
+  const [messages, setMessages] = useState([]);
+  const [inputValue, setInputValue] = useState('');
+  const [userId] = useState('user_' + Math.random().toString(36).substr(2, 9));
+  const [loading, setLoading] = useState(false);
+  const [memories, setMemories] = useState([]);
+
+  useEffect(() => {
+    loadMemories();
+  }, []);
+
+  const loadMemories = async () => {
+    try {
+      const result = await memoryService.getUserMemories(userId);
+      setMemories(result.data || []);
+    } catch (error) {
+      console.error('Failed to load memories:', error);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim()) return;
+
+    const userMessage = {
+      role: 'user',
+      content: inputValue,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue('');
+    setLoading(true);
+
+    try {
+      // Create a simple assistant response (in real app, call LLM here)
+      const assistantMessage = {
+        role: 'assistant',
+        content: `I received your message: "${inputValue}". This has been saved to memory.`,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      // Store conversation in memory
+      await memoryService.addMemory(
+        [userMessage, assistantMessage],
+        userId,
+        { timestamp: new Date().toISOString() }
+      );
+
+      // Reload memories
+      await loadMemories();
+    } catch (error) {
+      console.error('Error processing message:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Sorry, there was an error processing your message.',
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!inputValue.trim()) return;
+
+    setLoading(true);
+    try {
+      const result = await memoryService.searchMemories(inputValue, userId, 5);
+      console.log('Search results:', result.data);
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'user',
+          content: `Search: ${inputValue}`,
+        },
+        {
+          role: 'assistant',
+          content: `Found ${result.data.results?.length || 0} relevant memories.`,
+        },
+      ]);
+      
+      setInputValue('');
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const clearAllMemories = async () => {
+    if (window.confirm('Are you sure you want to clear all memories?')) {
+      try {
+        await memoryService.deleteAllUserMemories(userId);
+        setMemories([]);
+        setMessages([]);
+      } catch (error) {
+        console.error('Failed to clear memories:', error);
+      }
+    }
+  };
+
+  return (
+    <div className="chat-container">
+      <div className="chat-header">
+        <h1>Mem0 Chat Demo</h1>
+        <div className="header-info">
+          <span>User ID: {userId}</span>
+          <button onClick={clearAllMemories} className="clear-btn">
+            Clear All Memories
+          </button>
+        </div>
+      </div>
+
+      <div className="chat-layout">
+        <div className="chat-main">
+          <div className="messages-container">
+            {messages.length === 0 ? (
+              <div className="empty-state">
+                <p>Start a conversation! Your messages will be stored in memory.</p>
+              </div>
+            ) : (
+              messages.map((msg, idx) => (
+                <div key={idx} className={`message ${msg.role}`}>
+                  <div className="message-role">
+                    {msg.role === 'user' ? '👤 You' : '🤖 Assistant'}
+                  </div>
+                  <div className="message-content">{msg.content}</div>
+                </div>
+              ))
+            )}
+            {loading && (
+              <div className="message assistant">
+                <div className="message-role">🤖 Assistant</div>
+                <div className="message-content loading">Thinking...</div>
+              </div>
+            )}
+          </div>
+
+          <div className="input-container">
+            <textarea
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type your message..."
+              disabled={loading}
+              rows="3"
+            />
+            <div className="button-group">
+              <button
+                onClick={handleSendMessage}
+                disabled={loading || !inputValue.trim()}
+                className="send-btn"
+              >
+                Send Message
+              </button>
+              <button
+                onClick={handleSearch}
+                disabled={loading || !inputValue.trim()}
+                className="search-btn"
+              >
+                Search Memories
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="memories-sidebar">
+          <h2>Stored Memories ({memories.length})</h2>
+          <button onClick={loadMemories} className="refresh-btn">
+            Refresh
+          </button>
+          <div className="memories-list">
+            {memories.length === 0 ? (
+              <p className="no-memories">No memories yet</p>
+            ) : (
+              memories.map((mem, idx) => (
+                <div key={idx} className="memory-item">
+                  <div className="memory-content">{mem.memory}</div>
+                  <div className="memory-meta">
+                    ID: {mem.id?.substring(0, 8)}...
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Chat;
+```
+
+### Step 12: Create Styles
+
+Create `src/components/Chat.css`:
+
+```css
+.chat-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.chat-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.chat-header h1 {
+  margin: 0 0 10px 0;
+  font-size: 28px;
+}
+
+.header-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.chat-layout {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 20px;
+  height: calc(100vh - 200px);
+}
+
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: #f8f9fa;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6c757d;
+}
+
+.message {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  max-width: 80%;
+}
+
+.message.user {
+  background: #667eea;
+  color: white;
+  margin-left: auto;
+}
+
+.message.assistant {
+  background: white;
+  border: 1px solid #dee2e6;
+}
+
+.message-role {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
+
+.message-content {
+  line-height: 1.5;
+}
+
+.message-content.loading {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.input-container {
+  padding: 20px;
+  background: white;
+  border-top: 1px solid #dee2e6;
+}
+
+.input-container textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  resize: none;
+  font-family: inherit;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.input-container textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+}
+
+button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.send-btn {
+  flex: 1;
+  background: #667eea;
+  color: white;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: #5568d3;
+}
+
+.search-btn {
+  flex: 1;
+  background: #48bb78;
+  color: white;
+}
+
+.search-btn:hover:not(:disabled) {
+  background: #38a169;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clear-btn {
+  background: #f56565;
+  color: white;
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.clear-btn:hover {
+  background: #e53e3e;
+}
+
+.memories-sidebar {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.memories-sidebar h2 {
+  margin: 0 0 15px 0;
+  font-size: 20px;
+  color: #2d3748;
+}
+
+.refresh-btn {
+  width: 100%;
+  background: #4299e1;
+  color: white;
+  margin-bottom: 15px;
+}
+
+.refresh-btn:hover {
+  background: #3182ce;
+}
+
+.memories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.no-memories {
+  text-align: center;
+  color: #a0aec0;
+  padding: 40px 20px;
+}
+
+.memory-item {
+  padding: 12px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.memory-content {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #2d3748;
+  margin-bottom: 8px;
+}
+
+.memory-meta {
+  font-size: 11px;
+  color: #718096;
+}
+
+@media (max-width: 768px) {
+  .chat-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .memories-sidebar {
+    max-height: 400px;
+  }
+
+  .message {
+    max-width: 90%;
+  }
+}
+```
+
+### Step 13: Update App Component
+
+Replace `src/App.js`:
+
+```javascript
+import React from 'react';
+import Chat from './components/Chat';
+import './App.css';
+
+function App() {
+  return (
+    <div className="App">
+      <Chat />
+    </div>
+  );
+}
+
+export default App;
+```
+
+Update `src/App.css`:
+
+```css
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #f0f2f5;
+}
+
+.App {
+  min-height: 100vh;
+}
+```
+
+### Step 14: Run the Complete Application
+
+**Terminal 1 - Start Qdrant (if not already running):**
+```bash
+cd qdrant
+docker compose up -d
+```
+
+**Terminal 2 - Start Backend:**
+```bash
+cd backend
+npm run dev
+```
+
+**Terminal 3 - Start Frontend:**
+```bash
+cd frontend
+npm start
+```
+
+Visit `http://localhost:3000` in your browser.[10][8][9]
+
+## Part 4: Advanced Configuration
+
+### Using Local LLM with Ollama
+
+To run completely locally without OpenAI, configure Ollama:[11][3]
+
+**Install Ollama:**
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+**Pull a model:**
+```bash
+ollama pull llama3.1
+ollama pull nomic-embed-text
+```
+
+**Update backend `server.js` memory configuration:**
+
+```javascript
+const memoryConfig = {
+  version: 'v1.1',
+  vectorStore: {
+    provider: 'qdrant',
+    config: {
+      collectionName: 'memories',
+      host: 'localhost',
+      port: 6333,
+      embedding_model_dims: 768, // nomic-embed-text dimensions
+    },
+  },
+  llm: {
+    provider: 'ollama',
+    config: {
+      model: 'llama3.1:latest',
+      temperature: 0,
+      maxTokens: 2000,
+      ollama_base_url: 'http://localhost:11434',
+    },
+  },
+  embedder: {
+    provider: 'ollama',
+    config: {
+      model: 'nomic-embed-text:latest',
+      ollama_base_url: 'http://localhost:11434',
+    },
+  },
+};
+```
+
+Remove the `OPENAI_API_KEY` requirement from `.env`.[3][11]
+
+### Persistent Storage Configuration
+
+To ensure Qdrant persists data across restarts, the Docker Compose configuration already includes a volume. To verify persistence:[12][7][5]
+
+```bash
+docker volume ls
+```
+
+You should see `qdrant_qdrant_data`.
+
+### Using Alternative History Stores
+
+For serverless environments or better persistence, use Supabase for history storage:[8]
+
+**Install Supabase client:**
+```bash
+npm install @supabase/supabase-js
+```
+
+**Update memory configuration:**
+
+```javascript
+const memoryConfig = {
+  // ... other config
+  historyStore: {
+    provider: 'supabase',
+    config: {
+      supabaseUrl: process.env.SUPABASE_URL,
+      supabaseKey: process.env.SUPABASE_KEY,
+      tableName: 'memory_history',
+    },
+  },
+};
+```
+
+**Create the history table in Supabase:**
+
+```sql
+create table memory_history (
+  id text primary key,
+  memory_id text not null,
+  previous_value text,
+  new_value text,
+  action text not null,
+  created_at timestamp with time zone default timezone('utc', now()),
+  updated_at timestamp with time zone,
+  is_deleted integer default 0
+);
+```
+
+## Part 5: Best Practices and Tips
+
+### Memory Management Best Practices
+
+**Use meaningful user IDs**: Create consistent user identifiers across sessions:[4][8]
+```javascript
+const userId = localStorage.getItem('userId') || 
+  'user_' + Math.random().toString(36).substr(2, 9);
+localStorage.setItem('userId', userId);
+```
+
+**Add metadata for better organization**:[8]
+```javascript
+await memoryService.addMemory(messages, userId, {
+  category: 'preferences',
+  timestamp: new Date().toISOString(),
+  source: 'chat',
+});
+```
+
+**Search before adding**: Check existing memories to avoid duplicates:[4]
+```javascript
+const existing = await memoryService.searchMemories(query, userId);
+if (existing.data.results.length === 0) {
+  await memoryService.addMemory(messages, userId);
+}
+```
+
+### Performance Optimization
+
+**Implement request debouncing**: Prevent excessive API calls:[8]
+```javascript
+import { useCallback } from 'react';
+import debounce from 'lodash.debounce';
+
+const debouncedSearch = useCallback(
+  debounce((query) => {
+    memoryService.searchMemories(query, userId);
+  }, 500),
+  []
+);
+```
+
+**Batch memory operations**: Group related memories:[4]
+```javascript
+const conversationMessages = [
+  { role: 'user', content: 'Message 1' },
+  { role: 'assistant', content: 'Response 1' },
+  { role: 'user', content: 'Message 2' },
+  { role: 'assistant', content: 'Response 2' },
+];
+
+await memoryService.addMemory(conversationMessages, userId);
+```
+
+**Cache frequently accessed memories**: Use React state or context:[8]
+```javascript
+const [cachedMemories, setCachedMemories] = useState({});
+
+const getMemoryWithCache = async (memoryId) => {
+  if (cachedMemories[memoryId]) {
+    return cachedMemories[memoryId];
+  }
+  
+  const memory = await memoryService.getMemory(memoryId);
+  setCachedMemories(prev => ({ ...prev, [memoryId]: memory }));
+  return memory;
+};
+```
+
+### Error Handling
+
+Implement comprehensive error handling:[8]
+
+```javascript
+const handleMemoryOperation = async (operation) => {
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const result = await operation();
+    return result;
+  } catch (error) {
+    const errorMessage = error.response?.data?.error || 
+                        'An unexpected error occurred';
+    setError(errorMessage);
+    console.error('Memory operation failed:', error);
+    
+    // Optionally show user-friendly notification
+    toast.error(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+### Security Considerations
+
+**Never expose API keys in frontend**: Always use backend as a proxy.[9][8]
+
+**Implement rate limiting** on backend endpoints:
+```bash
+npm install express-rate-limit
+```
+
+```javascript
+import rateLimit from 'express-rate-limit';
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
+app.use('/api/', limiter);
+```
+
+**Validate user IDs**: Ensure users can only access their own memories:[8]
+```javascript
+app.get('/api/memories/user/:userId', authenticate, async (req, res) => {
+  const { userId } = req.params;
+  
+  // Check if authenticated user matches requested userId
+  if (req.user.id !== userId) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  // Proceed with fetching memories
+});
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Qdrant Connection Errors**:[5][12]
+```bash
+# Check if Qdrant is running
+docker ps
+
+# Check Qdrant logs
+docker logs qdrant
+
+# Restart Qdrant
+docker compose restart
+```
+
+**Memory not persisting**: Verify embedding dimensions match:[5]
+```javascript
+// Check your embedding model dimensions
+// OpenAI text-embedding-3-small: 1536
+// nomic-embed-text: 768
+```
+
+**CORS errors**: Ensure backend CORS is configured properly:[8]
+```javascript
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+```
+
+**Memory not found errors**: Initialize collection properly:[5]
+```javascript
+// Qdrant automatically creates collections, but you can verify:
+curl http://localhost:6333/collections
+```
+
+## Conclusion
+
+You now have a fully functional local Mem0 setup with React that includes:
+- Vector database storage with Qdrant running locally[5]
+- Backend API with comprehensive memory operations[9][8]
+- React frontend with chat interface and memory visualization[10]
+- Full CRUD operations for memories[4][8]
+- Search and retrieval capabilities[4]
+
+This architecture is production-ready and can be scaled by deploying Qdrant to a cloud instance, using managed LLM providers, and implementing authentication. The local setup gives you complete control over your data while maintaining the powerful memory capabilities of Mem0.[2][1][4]

@@ -24,7 +24,6 @@ const MarkdownWithCitations: FC<PropsWithChildren<{}>> = ({ children }) => {
                 // @ts-ignore: Custom node type for citation
                 citation: ({ node }: any) => {
                     // HAST nodes: custom attributes are in properties, and all keys are lowercase
-                    console.log(node);
                     const entryId = node.properties?.entryid;
                     const entry = entries.find(e => e.id === entryId);
                     if (!entry) return <span style={{ color: 'red' }}>[Unknown citation]</span>;

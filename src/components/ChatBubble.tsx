@@ -7,6 +7,7 @@ import MarkdownWithCitations from '@/components/MarkdownWithCitations';
 import ReflectionReaction from '@/components/ReflectionReaction';
 import { StashButton } from '@/components/StashButton';
 import { Button } from './ui/button';
+import { useServices } from '@/providers/ServiceProvider';
 
 
 // Create a union type to support both message types
@@ -28,24 +29,31 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, children }) => 
     // In a real app, replace with actual user auth context
     const userId = 'local-user';
 
+    const { sessionService } = useServices();
+
     // Trigger reflection_viewed event when an AI message is displayed
     useEffect(() => {
         if (isAI) {
-            // Only trigger once per message
-            const viewedMessages = JSON.parse(localStorage.getItem('viewedMessages') || '[]');
-            if (!viewedMessages.includes(message.messageId)) {
-                // Add to viewed messages
-                viewedMessages.push(message.messageId);
-                localStorage.setItem('viewedMessages', JSON.stringify(viewedMessages));
+            try {
+                const raw = sessionService.getItem('viewedMessages');
+                const viewedMessages = raw ? JSON.parse(raw) : [];
+                if (!viewedMessages.includes(message.messageId)) {
+                    // Add to viewed messages
+                    viewedMessages.push(message.messageId);
+                    sessionService.setItem('viewedMessages', JSON.stringify(viewedMessages));
 
-                // Dispatch the event that the FeedbackNudge is listening for
-                const viewEvent = new CustomEvent('reflection_viewed', {
-                    detail: { messageId: message.messageId }
-                });
-                document.dispatchEvent(viewEvent);
+                    // Dispatch the event that the FeedbackNudge is listening for
+                    const viewEvent = new CustomEvent('reflection_viewed', {
+                        detail: { messageId: message.messageId }
+                    });
+                    document.dispatchEvent(viewEvent);
+                }
+            } catch (err) {
+                // If parsing or storage fails, fail silently to avoid breaking render
+                console.warn('Failed to mark message as viewed', err);
             }
         }
-    }, [isAI, message.messageId]);
+    }, [isAI, message.messageId, sessionService]);
 
     const handleCopy = async () => {
         try {
