@@ -3,16 +3,16 @@
  *
  * Allows users to select between cloud (OpenAI) and local (WebLLM) AI providers.
  * When local is selected, users can choose from available open-source models.
- * Shows real-time download progress for WebLLM model initialization.
+ * Provides a button to download and initialize the selected model.
  *
- * NOTE: This component does NOT auto-initialize the model. The model is only
- * initialized when actually needed (during chat/reflection). This prevents
- * browser crashes from attempting to load large models unnecessarily.
+ * NOTE: This component does NOT auto-initialize the model. The user must
+ * explicitly click "Download Model" to start the initialization process.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { AVAILABLE_MODELS, getModelById } from '@/services/llmProviders/providerFactory';
+import { createLLMProvider } from '@/services/llmProviders/providerFactory';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -22,17 +22,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Cloud, Zap, Info } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Cloud, Zap, Info, Download } from 'lucide-react';
+import ModelDownloadProgress from './ModelDownloadProgress';
 
 /**
  * AIProviderSettings component for the settings page.
  * Allows switching between cloud and local AI providers.
- * Does not auto-initialize models to avoid browser crashes.
+ * Requires explicit model download before using local inference.
  */
 export const AIProviderSettings: React.FC = () => {
   const aiProvider = useSettingsStore(state => state.aiProvider);
   const localModelId = useSettingsStore(state => state.localModelId);
   const setSetting = useSettingsStore(state => state.setSetting);
+
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<Error | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState('');
 
   const currentModel = getModelById(localModelId);
 
@@ -42,6 +48,36 @@ export const AIProviderSettings: React.FC = () => {
 
   const handleModelChange = (modelId: string) => {
     setSetting('localModelId', modelId);
+    // Clear download state when switching models
+    setDownloadError(null);
+    setDownloadProgress('');
+  };
+
+  const handleDownloadModel = async () => {
+    try {
+      setIsDownloading(true);
+      setDownloadError(null);
+      setDownloadProgress('Initializing...');
+
+      // Create provider with progress callback
+      await createLLMProvider({
+        mode: 'local',
+        modelId: localModelId,
+        initProgressCallback: (report) => {
+          setDownloadProgress(report.text);
+        },
+        autoInitialize: true,
+      });
+
+      setDownloadProgress('Model ready!');
+      setTimeout(() => {
+        setIsDownloading(false);
+      }, 2000);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      setDownloadError(err);
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -165,18 +201,53 @@ export const AIProviderSettings: React.FC = () => {
                 </p>
               </div>
 
+              {/* Download Progress or Button */}
+              {isDownloading ? (
+                <ModelDownloadProgress
+                  progressText={downloadProgress}
+                  isLoading={isDownloading}
+                  error={downloadError}
+                  modelName={currentModel?.name || 'Model'}
+                />
+              ) : downloadError ? (
+                <>
+                  <div className="p-4 bg-destructive/10 border border-destructive rounded-lg">
+                    <p className="text-sm text-destructive font-medium">
+                      Download failed: {downloadError.message}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleDownloadModel}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Retry Download
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={handleDownloadModel}
+                  className="w-full"
+                  size="lg"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download & Initialize Model
+                </Button>
+              )}
+
               {/* Download Info */}
               <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg">
                 <div className="flex gap-2">
                   <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                      Model Download
+                      Model Download Required
                     </p>
                     <p className="text-xs text-amber-800 dark:text-amber-200 mt-1">
-                      The model will download automatically when you first use local inference. This may take
+                      Click "Download & Initialize Model" to download the model to your device. This may take
                       several minutes depending on model size and internet speed. The download is cached for
-                      future use.
+                      future use. Once downloaded, all inference happens locally on your device.
                     </p>
                   </div>
                 </div>
