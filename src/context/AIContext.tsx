@@ -5,6 +5,7 @@ import useConversationStore from '@/store/conversationStore';
 import { streamReflectionToStore } from '@/services/aiService';
 import { useNavigate } from 'react-router-dom'; // Import the useNavigate hook
 import { trackSendMessage, trackStartReflection } from '@/services/analyticsService';
+import { useLLMProvider } from '@/services/llmProviders/useLLMProvider';
 
 interface AIContextValue {
   sendMessageToAI: (
@@ -24,6 +25,10 @@ export const AIProvider = ({ children }: { children: ReactNode }) => {
   const addJournalMessage = useJournalStore((state) => state.addMessage);
   const addConversationMessage = useConversationStore((state) => state.addMessage);
   const navigate = useNavigate(); // Initialize navigate here
+
+  // Initialize LLM provider based on settings
+  // This hook manages provider lifecycle and sets the global provider
+  useLLMProvider();
 
   const sendMessageToAI: AIContextValue['sendMessageToAI'] = async (
     input,
