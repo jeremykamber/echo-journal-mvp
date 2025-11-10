@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "dev:whisper": "tsx server/whisperServer.ts",
+    "dev:whisper": "bun run server/whisperServer.ts",
     "dev:full": "concurrently \"npm run dev:whisper\" \"npm run dev\""
   },
   "dependencies": {
