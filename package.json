@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "dev:whisper": "tsx server/whisperServer.ts",
+    "dev:full": "concurrently \"npm run dev:whisper\" \"npm run dev\""
   },
   "dependencies": {
     "@langchain/community": "^0.3.41",
@@ -76,6 +78,7 @@
     "@types/react-dom": "^19.0.4",
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.2.1",
     "eslint": "^9.22.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",

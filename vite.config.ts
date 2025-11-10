@@ -11,4 +11,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      '/api/whisper': {
+        target: 'http://localhost:8788',
+        changeOrigin: true,
+      },
+    },
+  },
 })
