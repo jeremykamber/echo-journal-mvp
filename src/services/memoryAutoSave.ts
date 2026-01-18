@@ -1,6 +1,7 @@
 import makeMemoryService from '@/features/memory/services/memoryService';
 import { supabase } from '@/clients/supabaseClient';
 import type { JournalEntry, Message } from '@/store/journalStore';
+import { indexJournalEntry, indexConversationMessage } from '@/services/persistentVectorStore';
 
 // Default to enabled for local testing unless explicitly disabled
 const ENABLED = import.meta.env.VITE_ENABLE_MEMORIES === 'false' ? false : true;
@@ -79,6 +80,20 @@ export async function autoSaveJournalEntry(entry: JournalEntry): Promise<void> {
         dedupeCache.set(key, now);
         const userId = await getCurrentUserId();
         queueSave({ text: payloadText, userId, source: 'journal', sourceId: entry.id, metadata: { title: entry.title, date: entry.date } });
+
+        // Also index into persistent vector store
+        void indexJournalEntry(entry);
+
+        // Automated Tagging: if entry has no tags and text is sufficient
+        if ((!entry.tags || entry.tags.length === 0) && text.length > 50) {
+            const { generateTagsForEntry } = await import('@/services/taggingService');
+            const journalStore = (await import('@/store/journalStore')).default;
+            void generateTagsForEntry(text).then((tags) => {
+                if (tags && tags.length > 0) {
+                    journalStore.getState().updateEntryTags(entry.id, tags);
+                }
+            });
+        }
     } catch (err) {
         console.warn('autoSaveJournalEntry failed', err);
     }
@@ -97,6 +112,15 @@ export async function autoSaveMessage(message: Message): Promise<void> {
         dedupeCache.set(key, now);
         const userId = await getCurrentUserId();
         queueSave({ text: payloadText, userId, source: 'conversation', sourceId: message.messageId || message.threadId, metadata: { sender: message.sender, threadId: message.threadId, isRealtimeReflection: message.isRealtimeReflection } });
+
+        // Also index into persistent vector store
+        void indexConversationMessage({
+            messageId: message.messageId,
+            sender: message.sender,
+            text: message.text,
+            timestamp: message.timestamp,
+            conversationId: message.threadId
+        });
     } catch (err) {
         console.warn('autoSaveMessage failed', err);
     }

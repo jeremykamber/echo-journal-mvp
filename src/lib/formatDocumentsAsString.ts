@@ -18,13 +18,12 @@ export function formatDocumentsAsString(
 
     return documents
         .map((doc) => {
-            // Format metadata as a string if it exists
-            const metadataStr = doc.metadata 
-                ? `Metadata: ${JSON.stringify(doc.metadata)}\n` 
-                : '';
-            
-            // Combine metadata with page content
-            return `${metadataStr}${doc.pageContent || ''}`;
+            const source = doc.metadata?.source || 'journal';
+            const id = doc.metadata?.entryId || doc.metadata?.messageId || 'unknown';
+            const date = doc.metadata?.date || doc.metadata?.timestamp || '';
+            const title = doc.metadata?.title ? ` (Title: ${doc.metadata.title})` : '';
+
+            return `[SOURCE: ${source.toUpperCase()}] [CITATION_ID: ${id}] ${date ? `[DATE: ${date}]` : ''}${title}\nContent: ${doc.pageContent || ''}`;
         })
         .join(separator);
 }

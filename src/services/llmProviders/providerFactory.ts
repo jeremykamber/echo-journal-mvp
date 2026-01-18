@@ -72,44 +72,7 @@ export async function createLLMProvider(config: LLMProviderConfig): Promise<LLMP
  * Available WebLLM model options organized by size.
  * These are pre-compiled MLC models optimized for in-browser inference.
  */
-export const AVAILABLE_MODELS = {
-  '1.5B': [
-    {
-      id: 'Qwen2-1.5B-Instruct-q4f32_1-MLC',
-      name: 'Qwen 2 1.5B Instruct',
-      description: 'Lightweight model suitable for most devices',
-    },
-  ],
-  '3B': [
-    {
-      id: 'Phi-3.5-mini-instruct-q4f32_1-MLC',
-      name: 'Phi 3.5 Mini Instruct',
-      description: 'Microsoft model with good quality/speed tradeoff',
-    },
-    {
-      id: 'Gemma-2-9b-it-q4f32_1-MLC',
-      name: 'Gemma 2 9B IT',
-      description: 'Google model optimized for instructions',
-    },
-  ],
-  '7B+': [
-    {
-      id: 'Llama-3.2-1B-Instruct-q4f32_1-MLC',
-      name: 'Llama 3.2 1B Instruct',
-      description: 'Meta model, good instruction following',
-    },
-    {
-      id: 'Llama-3.1-8B-Instruct-q4f32_1-MLC',
-      name: 'Llama 3.1 8B Instruct',
-      description: 'Larger model with better reasoning (8B)',
-    },
-    {
-      id: 'Mistral-7B-Instruct-v0.3-q4f32_1-MLC',
-      name: 'Mistral 7B Instruct v0.3',
-      description: 'Mistral model with strong instruction following',
-    },
-  ],
-} as const;
+export const AVAILABLE_MODELS = WebLLMService.getAllAvailableModels();
 
 /**
  * Get all available model options as a flat list.
@@ -117,25 +80,7 @@ export const AVAILABLE_MODELS = {
  * @returns Array of all available models with their metadata
  */
 export function getAllModels() {
-  const allModels: Array<{
-    id: string;
-    name: string;
-    description: string;
-    size: string;
-  }> = [];
-
-  (Object.entries(AVAILABLE_MODELS) as Array<[string, typeof AVAILABLE_MODELS['1.5B']]>).forEach(
-    ([size, models]) => {
-      models.forEach(model => {
-        allModels.push({
-          ...model,
-          size,
-        });
-      });
-    }
-  );
-
-  return allModels;
+  return AVAILABLE_MODELS;
 }
 
 /**
@@ -145,5 +90,5 @@ export function getAllModels() {
  * @returns Model metadata or undefined if not found
  */
 export function getModelById(modelId: string) {
-  return getAllModels().find(m => m.id === modelId);
+  return getAllModels().find(m => m === modelId);
 }

@@ -7,6 +7,7 @@ import {
     trackSendMessage,
     trackEvent, // Import generic trackEvent
 } from '@/services/analyticsService';
+import { autoSaveJournalEntry, autoSaveMessage } from '@/services/memoryAutoSave';
 
 export interface JournalEntry {
     id: string;
@@ -14,6 +15,7 @@ export interface JournalEntry {
     content: string;
     date: string;
     chatId?: string; // Thread ID for entry-specific chat history
+    tags?: string[]; // AI-generated or manual tags
 }
 
 export interface Message {
@@ -38,6 +40,7 @@ export interface JournalState {
     getEntryById: (id: string) => JournalEntry | undefined;
     createEntry: () => string; // Returns the ID of the newly created entry
     deleteEntry: (id: string) => void; // Delete a journal entry by ID
+    updateEntryTags: (id: string, tags: string[]) => void;
 
     // Batch import capabilities
     createEntryWithData: (title: string, content: string, date?: string) => string;
@@ -79,21 +82,19 @@ const useJournalStore = create<JournalState>()(
              */
             addMessage: (sender, text, threadId, entryId, isRealtimeReflection = false, reflectedContent, isRead = false) => {
                 const messageId = uuidv4(); // Generate a unique message ID
+                const message: Message = {
+                    messageId,
+                    sender,
+                    text,
+                    timestamp: new Date().toISOString(),
+                    entryId,
+                    threadId,
+                    isRealtimeReflection,
+                    ...(reflectedContent ? { reflectedContent } : {}),
+                    isRead,
+                };
                 set((state) => ({
-                    messages: [
-                        ...state.messages,
-                        {
-                            messageId,
-                            sender,
-                            text,
-                            timestamp: new Date().toISOString(),
-                            entryId,
-                            threadId,
-                            isRealtimeReflection,
-                            ...(reflectedContent ? { reflectedContent } : {}),
-                            isRead,
-                        },
-                    ],
+                    messages: [...state.messages, message],
                 }));
                 // Track user messages and AI reflections
                 if (sender === 'user') {
@@ -101,12 +102,25 @@ const useJournalStore = create<JournalState>()(
                 } else if (isRealtimeReflection) {
                     trackEvent('AI', 'AddRealtimeReflection', threadId); // Track reflection addition
                 }
+
+                // Auto-save message to index into vector store
+                void autoSaveMessage(message);
+
                 return messageId; // Return the generated message ID
             },
             updateEntry: (id, content) =>
-                set((state) => ({
-                    entries: state.entries.map((e) => (e.id === id ? { ...e, content } : e)),
-                })),
+                set((state) => {
+                    const entry = state.entries.find((e) => e.id === id);
+                    if (entry) {
+                        const updatedEntry = { ...entry, content };
+                        // Auto-save entry to index into vector store (deduped in memoryAutoSave)
+                        void autoSaveJournalEntry(updatedEntry);
+                        return {
+                            entries: state.entries.map((e) => (e.id === id ? updatedEntry : e)),
+                        };
+                    }
+                    return state;
+                }),
             updateEntryTitle: (id, title) =>
                 set((state) => ({
                     entries: state.entries.map((e) => (e.id === id ? { ...e, title } : e)),
@@ -128,6 +142,7 @@ const useJournalStore = create<JournalState>()(
                 };
                 set((state) => ({ entries: [...state.entries, newEntry] }));
                 trackCreateEntry(); // Track entry creation
+                void autoSaveJournalEntry(newEntry);
                 return id;
             },
             deleteEntry: (id) => {
@@ -197,6 +212,10 @@ const useJournalStore = create<JournalState>()(
                 }));
                 return newThreadId;
             },
+            updateEntryTags: (id, tags) =>
+                set((state) => ({
+                    entries: state.entries.map((e) => (e.id === id ? { ...e, tags } : e)),
+                })),
             updateMessageById: (messageId, newText) => {
                 set((state) => ({
                     messages: state.messages.map((message) =>

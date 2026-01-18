@@ -8,19 +8,19 @@
  * the LLMProvider interface, enabling provider swapping.
  */
 
-import { makeChatClient, makeRealtimeChatClient } from '@/clients/openaiClient';
+import { makeOpenRouterChatClient, makeOpenRouterRealtimeChatClient } from '@/clients/openaiClient';
 import { LLMProvider, StreamChatCompletionOptions } from './interface';
 import { BaseMessage, SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { RunnableSequence } from '@langchain/core/runnables';
 
 /**
- * OpenAILLMProvider uses OpenAI API for chat completions.
+ * OpenAILLMProvider uses OpenRouter API for chat completions.
  * Cloud-based inference with no local setup required.
  */
 export class OpenAILLMProvider implements LLMProvider {
-  private chatClient: ReturnType<typeof makeChatClient>;
-  private realtimeChatClient: ReturnType<typeof makeRealtimeChatClient>;
+  private chatClient: ReturnType<typeof makeOpenRouterChatClient>;
+  private realtimeChatClient: ReturnType<typeof makeOpenRouterRealtimeChatClient>;
 
   /**
    * Create a new OpenAILLMProvider instance.
@@ -28,8 +28,8 @@ export class OpenAILLMProvider implements LLMProvider {
    * @param modelId - Optional model ID override (defaults to environment config)
    */
   constructor(modelId?: string) {
-    this.chatClient = makeChatClient({ model: modelId });
-    this.realtimeChatClient = makeRealtimeChatClient({ model: modelId });
+    this.chatClient = makeOpenRouterChatClient({ model: modelId });
+    this.realtimeChatClient = makeOpenRouterRealtimeChatClient({ model: modelId });
   }
 
   /**

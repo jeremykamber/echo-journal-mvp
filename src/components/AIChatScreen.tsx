@@ -8,6 +8,7 @@ import AIChatTour from '@/components/tours/AIChatTour';
 import { ChatBubble } from '@/components/ChatBubble';
 import { ChatInput } from '@/components/ChatInput';
 import { useAI } from '@/context/AIContext';
+import ErrorCard from './ErrorCard';
 import { cn } from '@/lib/utils';
 import EyebrowTextPill from '@/components/EyebrowTextPill';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ const AIChatScreen: React.FC = () => {
     const [conversationId, setConversationId] = useState<string | null>(null);
     const { sendMessageToAI } = useAI();
     const [isLoaded, setIsLoaded] = useState(false);
+    const [aiError, setAIError] = useState<string | null>(null);
     const [showImportDialog, setShowImportDialog] = useState(false);
 
     // Track if a conversation was created due to input
@@ -125,7 +127,13 @@ const AIChatScreen: React.FC = () => {
     // If a message is sent, clear pendingConversationId so it persists
     const handleSend = async () => {
         if (!input.trim() || !conversationId) return;
-        await sendMessageToAI(input, conversationId, { targetType: 'conversation' });
+        setAIError(null);
+        try {
+            await sendMessageToAI(input, conversationId, { targetType: 'conversation' });
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+            setAIError(errorMessage);
+        }
         setInput('');
         setPendingConversationId(null);
     };
@@ -140,6 +148,8 @@ const AIChatScreen: React.FC = () => {
             id="home-section"
             className="relative flex flex-col min-h-screen bg-gradient-to-b from-primary-foreground/50 to-background overflow-hidden"
         >
+            {/* ErrorCard for AI errors */}
+            <ErrorCard error={!!aiError} message={aiError || ''} />
             {/* Radial gradient background */}
             <div className="absolute inset-0 bg-gradient-radial from-primary-foreground/5 to-transparent opacity-70"></div>
             {/* Noise texture */}

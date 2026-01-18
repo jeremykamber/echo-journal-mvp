@@ -11,7 +11,7 @@
 
 import React, { useState } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
-import { AVAILABLE_MODELS, getModelById } from '@/services/llmProviders/providerFactory';
+import { AVAILABLE_MODELS } from '@/services/llmProviders/providerFactory';
 import { createLLMProvider } from '@/services/llmProviders/providerFactory';
 import { Label } from '@/components/ui/label';
 import {
@@ -40,7 +40,7 @@ export const AIProviderSettings: React.FC = () => {
   const [downloadError, setDownloadError] = useState<Error | null>(null);
   const [downloadProgress, setDownloadProgress] = useState('');
 
-  const currentModel = getModelById(localModelId);
+  // No longer needed: currentModel
 
   const handleProviderChange = (newProvider: 'cloud' | 'local') => {
     setSetting('aiProvider', newProvider);
@@ -183,41 +183,24 @@ export const AIProviderSettings: React.FC = () => {
                     <SelectValue placeholder="Select a model" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(AVAILABLE_MODELS).map(([size, models]) => (
-                      <div key={size}>
-                        <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted">
-                          {size} Models
-                        </div>
-                        {models.map(model => (
-                          <SelectItem key={model.id} value={model.id}>
-                            <span>{model.name}</span>
-                          </SelectItem>
-                        ))}
-                      </div>
+                    {AVAILABLE_MODELS.map((modelId: string) => (
+                      <SelectItem key={modelId} value={modelId}>
+                        <span>{modelId}</span>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Model Info */}
-              {currentModel && (
+              {/* Model Info: Show selected model ID only */}
+              {localModelId && (
                 <div className="p-3 bg-muted rounded-lg space-y-2">
-                  <p className="text-sm font-semibold">{currentModel.name}</p>
-                  <p className="text-xs text-muted-foreground">{currentModel.description}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Size: <strong>{currentModel.size}</strong>
-                  </p>
+                  <p className="text-sm font-semibold">Selected Model ID:</p>
+                  <p className="text-xs text-muted-foreground">{localModelId}</p>
                 </div>
               )}
 
-              {/* Model Size Info */}
-              <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg">
-                <p className="text-xs text-blue-900 dark:text-blue-100 space-y-1">
-                  <div><strong>1.5B:</strong> Lightweight, works on most devices.</div>
-                  <div><strong>3B:</strong> Better quality, requires more RAM.</div>
-                  <div><strong>7B+:</strong> Best quality, requires 8GB+ RAM and modern GPU recommended.</div>
-                </p>
-              </div>
+              {/* Model Size Info removed: not available in new structure */}
 
               {/* Download Progress or Button */}
               {isDownloading ? (
@@ -225,7 +208,7 @@ export const AIProviderSettings: React.FC = () => {
                   progressText={downloadProgress}
                   isLoading={isDownloading}
                   error={downloadError}
-                  modelName={currentModel?.name || 'Model'}
+                  modelName={localModelId || 'Model'}
                 />
               ) : downloadError ? (
                 <>

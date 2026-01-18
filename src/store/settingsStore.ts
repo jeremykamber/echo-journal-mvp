@@ -1,6 +1,12 @@
+// src/store/settingsStore.ts
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+/**
+ * Application settings interface.
+ * `vectorStorePath` is optional for web builds; it is used by the persistent vector store on the server.
+ */
 export interface AppSettings {
     reflectionSimilarityThreshold: number;
     reflectionMinLength: number;
@@ -17,8 +23,12 @@ export interface AppSettings {
      */
     aiProvider: 'cloud' | 'local';
     /**
+     * Path for persisting vector store data (used in Node environments).
+     * Optional for web builds.
+     */
+    vectorStorePath?: string;
+    /**
      * Selected local model ID when aiProvider is 'local'.
-     * One of the AVAILABLE_MODELS from providerFactory.
      */
     localModelId: string;
 }
@@ -29,7 +39,7 @@ interface SettingsState extends AppSettings {
 }
 
 const defaultSettings: AppSettings = {
-    reflectionSimilarityThreshold: 0.90,
+    reflectionSimilarityThreshold: 0.9,
     reflectionMinLength: 30,
     theme: 'system',
     showReflectionLabels: true,
@@ -40,7 +50,8 @@ const defaultSettings: AppSettings = {
     enableSharing: false,
     completedTours: [],
     aiProvider: 'cloud',
-    localModelId: 'Qwen2-1.5B-Instruct-q4f32_1-MLC',
+    vectorStorePath: './vector_store',
+    localModelId: '',
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -48,9 +59,10 @@ export const useSettingsStore = create<SettingsState>()(
         (set) => ({
             ...defaultSettings,
             setSetting: (key, value) => set({ [key]: value }),
-            markTourCompleted: (tourId) => set((state) => ({
-                completedTours: [...state.completedTours, tourId]
-            })),
+            markTourCompleted: (tourId) =>
+                set((state) => ({
+                    completedTours: [...state.completedTours, tourId],
+                })),
         }),
         {
             name: 'app-settings',
@@ -66,6 +78,7 @@ export const useSettingsStore = create<SettingsState>()(
                 enableSharing: state.enableSharing,
                 completedTours: state.completedTours,
                 aiProvider: state.aiProvider,
+                vectorStorePath: state.vectorStorePath,
                 localModelId: state.localModelId,
             }),
         }

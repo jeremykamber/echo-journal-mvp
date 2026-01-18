@@ -83,7 +83,7 @@ const Entry: React.FC = () => {
     }, [entry?.id]);
 
     // Handle sending chat message
-    const handleSend = async () => {
+    const handleSend = async (isDeepReflection: boolean = false) => {
         if (!chatInput.trim()) return;
         const userText = chatInput;
         setChatInput('');
@@ -92,6 +92,7 @@ const Entry: React.FC = () => {
             await sendMessageToAI(userText, threadId, {
                 targetType: 'journal',
                 entryId: id,
+                isDeepReflection,
             });
         } else {
             setErrorMessage("Please write a journal entry before chatting.");

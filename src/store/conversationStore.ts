@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { streamReflectionTokens } from '@/services/aiService';
+import { autoSaveMessage } from '@/services/memoryAutoSave';
 
 export interface Message {
     sender: 'user' | 'ai';
@@ -70,6 +71,16 @@ const useConversationStore = create<ConversationState>()(
                         },
                     ],
                 }));
+
+                // Auto-save to index into vector store
+                void autoSaveMessage({
+                    messageId,
+                    sender,
+                    text,
+                    timestamp,
+                    threadId: conversationId,
+                    entryId
+                });
 
                 // Update last message in conversation
                 if (sender === 'user') {
@@ -158,7 +169,18 @@ const useConversationStore = create<ConversationState>()(
                             timestamp: new Date().toISOString(),
                             conversationId,
                         };
-                        return { messages: [...state.messages, newMessage] };
+                        const updatedMessages = [...state.messages, newMessage];
+
+                        // Auto-save to index into vector store
+                        void autoSaveMessage({
+                            messageId: newMessage.messageId,
+                            sender: newMessage.sender,
+                            text: newMessage.text,
+                            timestamp: newMessage.timestamp,
+                            threadId: conversationId,
+                        });
+
+                        return { messages: updatedMessages };
                     }
                 });
             },

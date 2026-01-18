@@ -75,7 +75,7 @@ export class WebLLMService implements LLMProvider {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[WebLLM] Failed to initialize model: ${errorMessage}`);
-        
+
         // Provide more helpful error messages
         if (errorMessage.includes('Cache') || errorMessage.includes('network error')) {
           throw new Error(
@@ -86,12 +86,18 @@ export class WebLLMService implements LLMProvider {
             'Original error: ' + errorMessage
           );
         }
-        
+
         throw error;
       }
     } finally {
       this.isInitializing = false;
     }
+  }
+
+  static getAllAvailableModels() {
+    const availableModels = webllm.prebuiltAppConfig.model_list.map(
+      (m) => m.model_id,
+    ); return availableModels;
   }
 
   /**

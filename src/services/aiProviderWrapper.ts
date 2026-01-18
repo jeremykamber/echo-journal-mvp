@@ -35,6 +35,7 @@ export async function* getStreamingResponse(
     // If provider is ready, use it
     if (provider) {
       try {
+        console.log('Messages sent to local LLM provider:', messages);
         for await (const token of provider.streamChatCompletion({
           messages,
           temperature: options?.temperature,
