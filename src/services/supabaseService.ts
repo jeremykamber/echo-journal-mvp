@@ -80,8 +80,8 @@ export const getStash = async (): Promise<{
                 userId: row.user_id,
                 reflectionText: isEncrypted(row.reflection_text)
                     ? await decryptText(row.reflection_text, row.user_id).catch(
-                          () => row.reflection_text,
-                      )
+                        () => row.reflection_text,
+                    )
                     : row.reflection_text,
                 sourceType: row.source_type,
                 sourceId: row.source_id,
@@ -412,11 +412,11 @@ export const registerUser = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Registration failed",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Registration failed",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -454,11 +454,11 @@ export const loginWithEmail = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Login failed",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Login failed",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -499,11 +499,11 @@ export const logout = async (): Promise<{
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Logout failed",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Logout failed",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -536,11 +536,11 @@ export const getCurrentUser = async (): Promise<{
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to get current user",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to get current user",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -589,11 +589,11 @@ export const getUserProfile = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to get user profile",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to get user profile",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -649,11 +649,11 @@ export const updateUserProfile = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to update profile",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to update profile",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -717,8 +717,12 @@ export const createJournalEntry = async (
         // Fire-and-forget: auto-save the newly created entry into mem0 (client-side)
         try {
             void autoSaveJournalEntry(createdEntry);
+
+            // Trigger EPRA Orchestrator
+            const { agentOrchestrator } = await import('@/features/epra');
+            void agentOrchestrator.orchestrate(user.id, createdEntry.id, entry.content);
         } catch (err) {
-            console.warn("autoSaveJournalEntry failed:", err);
+            console.warn("autoSaveJournalEntry or EPRA failed:", err);
         }
 
         return { entry: createdEntry, error: null };
@@ -730,11 +734,11 @@ export const createJournalEntry = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to create journal entry",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to create journal entry",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -771,13 +775,13 @@ export const getUserJournalEntries = async (): Promise<{
                 id: entry.external_id || entry.id, // Prefer client ID if available
                 title: isEncrypted(entry.title)
                     ? await decryptText(entry.title, entry.user_id).catch(
-                          () => entry.title,
-                      )
+                        () => entry.title,
+                    )
                     : entry.title,
                 content: isEncrypted(entry.content)
                     ? await decryptText(entry.content, entry.user_id).catch(
-                          () => entry.content,
-                      )
+                        () => entry.content,
+                    )
                     : entry.content,
                 date: entry.date,
                 // We'll need to fetch chatId separately or via a join
@@ -793,11 +797,11 @@ export const getUserJournalEntries = async (): Promise<{
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to get journal entries",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to get journal entries",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -857,11 +861,11 @@ export const updateJournalEntry = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to update journal entry",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to update journal entry",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -941,11 +945,11 @@ export const deleteJournalEntry = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to delete journal entry",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to delete journal entry",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1029,11 +1033,11 @@ export const createThread = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to create thread",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to create thread",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1087,15 +1091,15 @@ export const getUserThreads = async (): Promise<{
                     id: thread.external_id || thread.id,
                     title: isEncrypted(thread.title)
                         ? await decryptText(thread.title, thread.user_id).catch(
-                              () => thread.title,
-                          )
+                            () => thread.title,
+                        )
                         : thread.title,
                     date: thread.created_at,
                     lastMessage: isEncrypted(lastMessage ?? "")
                         ? await decryptText(
-                              lastMessage ?? "",
-                              thread.user_id,
-                          ).catch(() => lastMessage)
+                            lastMessage ?? "",
+                            thread.user_id,
+                        ).catch(() => lastMessage)
                         : lastMessage,
                     isGlobal: thread.is_global,
                 };
@@ -1113,11 +1117,11 @@ export const getUserThreads = async (): Promise<{
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to get threads",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to get threads",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1175,11 +1179,11 @@ export const updateThread = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to update thread",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to update thread",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1253,11 +1257,11 @@ export const deleteThread = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to delete thread",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to delete thread",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1375,11 +1379,11 @@ export const addMessage = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to add message",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to add message",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1438,8 +1442,8 @@ export const getMessagesForThread = async (
                 isRealtimeReflection: msg.is_realtime_reflection,
                 reflectedContent: isEncrypted(msg.reflected_content)
                     ? await decryptText(msg.reflected_content, user.id).catch(
-                          () => msg.reflected_content,
-                      )
+                        () => msg.reflected_content,
+                    )
                     : msg.reflected_content,
                 isRead: msg.is_read,
             })),
@@ -1454,11 +1458,11 @@ export const getMessagesForThread = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to get messages",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to get messages",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1531,11 +1535,11 @@ export const updateMessage = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to update message",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to update message",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1594,11 +1598,11 @@ export const markAllMessagesAsRead = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to mark messages as read",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to mark messages as read",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1682,11 +1686,11 @@ export const getUserSettings = async (): Promise<{
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to get user settings",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to get user settings",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1747,11 +1751,11 @@ export const updateUserSettings = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to update user settings",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to update user settings",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };
@@ -1811,11 +1815,11 @@ export const markTourCompleted = async (
                 error instanceof SupabaseError
                     ? error
                     : new SupabaseError(
-                          "Failed to mark tour as completed",
-                          error instanceof Error
-                              ? error
-                              : new Error(String(error)),
-                      ),
+                        "Failed to mark tour as completed",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    ),
         };
     }
 };

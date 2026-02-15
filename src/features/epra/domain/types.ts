@@ -12,6 +12,9 @@ export interface ScheduledReflectionEvent {
   // The directive for the future Executor agent
   ai_prompt: string;
 
+  // The reasoning behind why this event was scheduled (for deduplication/pruning)
+  reason: string;
+
   // Context pointers
   source_journal_entry_id: UUID;
   related_journal_ids: UUID[];        // Max 5
