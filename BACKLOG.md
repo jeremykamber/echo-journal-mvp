@@ -33,11 +33,30 @@ This document outlines the features currently implemented in Echo Journal and th
 
 ---
 
-## ✨ Epic 3: Enhanced User Experience (UX/UI)
-*Focus: Making the journaling experience delightful, friction-free, and expressive.*
+## 📱 Epic 3: Mobile-First Redesign & Simplification (PRIORITY)
+*Focus: Redesigning the entire application to be mobile-first, simplistic, and friction-free ("One-Tap interaction").*
+
+- [ ] **Mobile-First Layout Overhaul**: Refactor `App.tsx` and main layouts to prioritize mobile views (responsive hidden sidebars, bottom navigation?).
+- [x] **Home Screen Refinement**: Fixed weird top viewport gap and optimized layout for mobile.
+- [ ] **Journal Entry Mobile Redesign**: Implement a more intuitive chat/reflection interface for small screens (selection pending).
+- [ ] **One-Tap Interactions**: Audit key user flows (create entry, chat) to minimize steps and friction.
+- [ ] **Touch-Optimized UI**: Ensure all touch targets are accessible (min 44px) and spacing is mobile-friendly.
+- [ ] **Virtual Keyboard Handling**: Optimize `AIChatScreen` input to handle mobile keyboard rendering without blocking content.
+- [ ] **Simplified Onboarding**: Streamline the initial user experience for mobile users.
+- [ ] **PWA Enhancement**: Ensure "Add to Home Screen" works perfectly with proper icons and manifest.
+- [x] **Robust Local Persistence**: Migrated from `localStorage` to IndexedDB (via `localforage`) for all data stores to prevent data loss.
+- [ ] **Unified Storage Layer**:
+  - [x] Create `DataRepository` interface for Journal Entries, Messages, and Conversations.
+  - [x] Implement `SupabaseRepository` for cloud storage.
+  - [x] Implement `LocalRepository` for offline storage (wrapping `localforage`).
+  - [x] Add Settings toggle to switch between Local and Cloud storage.
+
+---
+
+## ✨ Epic 4: Enhanced User Experience (UX/UI)
+*Focus: Polishing the experience with rich aesthetics and premium feel.*
 
 - [ ] **Rich Text Editing**: Support for Markdown, formatting, and inline images.
-- [ ] **Mobile Experience**: Optimized PWA or React Native app for journaling on the go.
 - [ ] **Media Integration**: Attach photos, videos, or links to entries with AI vision analysis.
 - [ ] **Interactive Widgets**: Dashboard widgets for "Last Week's Summary", "Mood Heatmap", etc.
 - [ ] **Micro-animations**: Polish transitions and interactions for a premium "mindful" feel.
@@ -45,10 +64,13 @@ This document outlines the features currently implemented in Echo Journal and th
 
 ---
 
-## 🔒 Epic 4: Privacy & Resilience
+## 🔒 Epic 5: Privacy & Resilience
 *Focus: Ensuring user data is safe, private, and permanent.*
 
-- [ ] **End-to-End Encryption**: Optional zero-knowledge encryption for cloud-synced data.
+- [x] **End-to-End Encryption**: Optional zero-knowledge encryption for cloud-synced data.
+  - *Research done: Selected AES-GCM with PBKDF2 for key derivation (Web Crypto API).*
+  - [x] Implement `encryptionService` integration with Supabase.
+  - [x] Add Settings toggle for encryption and password management UI.
 - [ ] **Biometric Lock**: Mobile/Web support for FaceID or TouchID to open the app.
 - [ ] **Offline-First Mode**: Full functionality without an internet connection using local LLMs.
 - [ ] **Export Options**: Export all data in various formats (PDF, Markdown, JSON, DOCX).
@@ -56,7 +78,7 @@ This document outlines the features currently implemented in Echo Journal and th
 
 ---
 
-## 🌐 Epic 5: Ecosystem & Integration
+## 🌐 Epic 6: Ecosystem & Integration
 *Focus: Connecting Echo Journal to the rest of the user's digital life.*
 
 - [ ] **Calendar Integration**: Pull in calendar events to provide context for journal entries.

@@ -1,11 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
 
-// Create a dedicated Supabase client for the clients layer. This intentionally mirrors
-// the existing top-level supabase instance for now — we'll consolidate later.
-const supabaseClient = createClient(supabaseUrl || '', supabaseAnonKey || '');
+const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
 export interface AppFeedbackPayload {
     emoji_rating: string;
@@ -15,21 +13,28 @@ export interface AppFeedbackPayload {
 }
 
 export const insertAppFeedback = async (
-    payload: AppFeedbackPayload
+    payload: AppFeedbackPayload,
 ): Promise<{ success: boolean; error: Error | null }> => {
     try {
-        if (!supabaseUrl || !supabaseAnonKey) {
+        if (!supabaseUrl || !supabaseKey) {
             // When env is not configured (dev/test) we return success to avoid
             // surfacing platform errors to end users during local development.
-            console.warn('Supabase environment not configured; insertAppFeedback skipped');
+            console.warn(
+                "Supabase environment not configured; insertAppFeedback skipped",
+            );
             return { success: true, error: null };
         }
 
-        const { error } = await supabaseClient.from('app_feedback').insert([payload]);
+        const { error } = await supabaseClient
+            .from("app_feedback")
+            .insert([payload]);
         if (error) return { success: false, error: new Error(error.message) };
         return { success: true, error: null };
     } catch (err) {
-        return { success: false, error: err instanceof Error ? err : new Error(String(err)) };
+        return {
+            success: false,
+            error: err instanceof Error ? err : new Error(String(err)),
+        };
     }
 };
 

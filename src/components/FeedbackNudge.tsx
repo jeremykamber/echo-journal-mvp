@@ -20,19 +20,22 @@ const FeedbackNudge: React.FC = () => {
 
   // Use sessionService to track if we've already shown the nudge in this session
   useEffect(() => {
-    const nudgeShown = sessionService.getItem('feedbackNudgeShown');
-    if (nudgeShown) {
-      setHasShownNudge(true);
-    }
+    const checkNudgeStatus = async () => {
+      const nudgeShown = await sessionService.getItem('feedbackNudgeShown');
+      if (nudgeShown) {
+        setHasShownNudge(true);
+      }
+    };
+    checkNudgeStatus();
 
     // Set up event listener for when a reflection is viewed
     const handleReflectionViewed = () => {
       if (!hasShownNudge) {
         // Only show the nudge once per session and after short delay
-        setTimeout(() => {
+        setTimeout(async () => {
           setIsNudgeOpen(true);
           setHasShownNudge(true);
-          sessionService.setItem('feedbackNudgeShown', 'true');
+          await sessionService.setItem('feedbackNudgeShown', 'true');
           trackEvent('Feedback', 'NudgeDisplayed', 'AfterReflectionView');
         }, 1500); // Delay to ensure user has had time to read the reflection
       }

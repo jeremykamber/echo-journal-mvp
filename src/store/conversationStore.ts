@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { robustStorage } from '@/lib/robustStorage';
 import { v4 as uuidv4 } from 'uuid';
 import { streamReflectionTokens } from '@/services/aiService';
 import { autoSaveMessage } from '@/services/memoryAutoSave';
+import { getRepository } from '@/services/storage/RepositoryFactory';
 
 export interface Message {
     sender: 'user' | 'ai';
@@ -42,6 +44,9 @@ export interface ConversationState {
     deleteConversation: (id: string) => void;
 
     sendMessageWithReflection: (input: string, threadId: string, entryId?: string) => Promise<void>;
+
+    // Sync
+    syncFromStorage: () => Promise<void>;
 }
 
 const useConversationStore = create<ConversationState>()(
@@ -178,6 +183,19 @@ const useConversationStore = create<ConversationState>()(
                             text: newMessage.text,
                             timestamp: newMessage.timestamp,
                             threadId: conversationId,
+                            timestamp: newMessage.timestamp,
+                            threadId: conversationId,
+                            entryId: undefined,
+                        });
+
+                        // Persist via Repository
+                        void getRepository().addMessageToConversation({
+                            messageId: newMessage.messageId,
+                            sender: newMessage.sender,
+                            text: newMessage.text,
+                            timestamp: newMessage.timestamp,
+                            conversationId,
+                            entryId: undefined
                         });
 
                         return { messages: updatedMessages };
@@ -205,8 +223,11 @@ const useConversationStore = create<ConversationState>()(
 
                 set((state) => ({
                     conversations: [...state.conversations, newConversation],
+                    conversations: [...state.conversations, newConversation],
                     activeConversationId: id,
                 }));
+
+                void getRepository().createConversation(newConversation);
 
                 return id;
             },
@@ -226,8 +247,10 @@ const useConversationStore = create<ConversationState>()(
                 set((state) => ({
                     conversations: state.conversations.filter((c) => c.id !== id),
                     messages: state.messages.filter((m) => m.conversationId !== id),
+                    messages: state.messages.filter((m) => m.conversationId !== id),
                     activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
                 }));
+                void getRepository().deleteConversation(id);
             },
 
             sendMessageWithReflection: async (input, threadId, entryId) => {
@@ -238,9 +261,25 @@ const useConversationStore = create<ConversationState>()(
                     entryId,
                 );
             },
+
+            syncFromStorage: async () => {
+                const repo = getRepository();
+                const conversations = await repo.getConversations();
+
+                // Messages fetch? 
+                // We might need to fetch messages per conversation or just all.
+                // For simplified sync, let's just sync conversations list for now.
+                // The individual messages might need `getMessagesForConversation(id)` when opening it.
+                // BUT, the store usually keeps all messages.
+                // This complicates things. 
+                // Let's assume for now we don't load all messages on startup, ONLY when clicked?
+                // But the store structure holds `messages: Message[]` globally.
+                set({ conversations });
+            }
         }),
         {
             name: 'conversation-storage',
+            storage: createJSONStorage(() => robustStorage),
         }
     )
 );

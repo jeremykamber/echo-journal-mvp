@@ -1,6 +1,8 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
+import { robustStorage } from '@/lib/robustStorage'
 import { v4 as uuidv4 } from 'uuid'
+import { getRepository } from '@/services/storage/RepositoryFactory'
 
 export type StashSourceType = 'journal' | 'conversation'
 
@@ -20,6 +22,7 @@ interface StashStore {
     addToStash: (item: Omit<StashItem, 'stashItemId' | 'stashedAt'>) => void
     removeFromStash: (stashItemId: string) => void
     isStashed: (sourceId: string) => boolean
+    syncFromStorage: () => Promise<void>
 }
 
 export const useStashStore = create<StashStore>()(
@@ -37,18 +40,27 @@ export const useStashStore = create<StashStore>()(
                         },
                     ],
                 }))
+                // Persist via Repository
+                void getRepository().addToStash(item)
             },
             removeFromStash: (stashItemId) => {
                 set((state) => ({
                     items: state.items.filter((i) => i.stashItemId !== stashItemId),
                 }))
+                void getRepository().removeFromStash(stashItemId)
             },
             isStashed: (sourceId) => {
                 return get().items.some((i) => i.sourceId === sourceId)
             },
+            syncFromStorage: async () => {
+                const repo = getRepository();
+                const items = await repo.getStash();
+                set({ items });
+            }
         }),
         {
             name: 'echo-stash',
+            storage: createJSONStorage(() => robustStorage),
         }
     )
 )

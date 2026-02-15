@@ -2,17 +2,17 @@
 // Stash Feature: Backend API
 // =============================================
 
-export type StashSourceType = 'journal' | 'conversation';
+export type StashSourceType = "journal" | "conversation";
 
 export interface StashItem {
-  stashItemId: string;
-  userId: string;
-  reflectionText: string;
-  sourceType: StashSourceType;
-  sourceId: string;
-  sourceTitleOrDate: string;
-  createdAt: string; // when the reflection was originally written
-  stashedAt: string; // when it was stashed
+    stashItemId: string;
+    userId: string;
+    reflectionText: string;
+    sourceType: StashSourceType;
+    sourceId: string;
+    sourceTitleOrDate: string;
+    createdAt: string; // when the reflection was originally written
+    stashedAt: string; // when it was stashed
 }
 
 /**
@@ -20,204 +20,272 @@ export interface StashItem {
  * @param params All required stash fields except stashItemId/userId/stashedAt
  */
 export const stashReflection = async (params: {
-  reflectionText: string;
-  sourceType: StashSourceType;
-  sourceId: string;
-  sourceTitleOrDate: string;
-  createdAt: string;
+    reflectionText: string;
+    sourceType: StashSourceType;
+    sourceId: string;
+    sourceTitleOrDate: string;
+    createdAt: string;
 }): Promise<{ success: boolean; error: Error | null }> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: new Error('Not authenticated') };
-    const { error } = await supabase.from('stash').insert([
-      {
-        user_id: user.id,
-        reflection_text: params.reflectionText,
-        source_type: params.sourceType,
-        source_id: params.sourceId,
-        source_title_or_date: params.sourceTitleOrDate,
-        created_at: params.createdAt,
-        stashed_at: new Date().toISOString(),
-      }
-    ]);
-    if (error) return { success: false, error };
-    return { success: true, error: null };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error : new Error('Unknown error') };
-  }
+    try {
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user)
+            return { success: false, error: new Error("Not authenticated") };
+        const { error } = await supabase.from("stash").insert([
+            {
+                user_id: user.id,
+                reflection_text: shouldEncrypt()
+                    ? await encryptText(params.reflectionText, user.id)
+                    : params.reflectionText,
+                source_type: params.sourceType,
+                source_id: params.sourceId,
+                source_title_or_date: params.sourceTitleOrDate,
+                created_at: params.createdAt,
+                stashed_at: new Date().toISOString(),
+            },
+        ]);
+        if (error) return { success: false, error };
+        return { success: true, error: null };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error : new Error("Unknown error"),
+        };
+    }
 };
 
 /**
  * Get all stashed reflections for the current user
  */
-export const getStash = async (): Promise<{ items: StashItem[]; error: Error | null }> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { items: [], error: new Error('Not authenticated') };
-    const { data, error } = await supabase
-      .from('stash')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('stashed_at', { ascending: false });
-    if (error) return { items: [], error };
-    // Map DB fields to StashItem
-    const items: StashItem[] = (data || []).map((row: any) => ({
-      stashItemId: row.id,
-      userId: row.user_id,
-      reflectionText: row.reflection_text,
-      sourceType: row.source_type,
-      sourceId: row.source_id,
-      sourceTitleOrDate: row.source_title_or_date,
-      createdAt: row.created_at,
-      stashedAt: row.stashed_at,
-    }));
-    return { items, error: null };
-  } catch (error) {
-    return { items: [], error: error instanceof Error ? error : new Error('Unknown error') };
-  }
+export const getStash = async (): Promise<{
+    items: StashItem[];
+    error: Error | null;
+}> => {
+    try {
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return { items: [], error: new Error("Not authenticated") };
+        const { data, error } = await supabase
+            .from("stash")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("stashed_at", { ascending: false });
+        if (error) return { items: [], error };
+        // Map DB fields to StashItem
+        const items: StashItem[] = await Promise.all(
+            (data || []).map(async (row: any) => ({
+                stashItemId: row.id,
+                userId: row.user_id,
+                reflectionText: isEncrypted(row.reflection_text)
+                    ? await decryptText(row.reflection_text, row.user_id).catch(
+                          () => row.reflection_text,
+                      )
+                    : row.reflection_text,
+                sourceType: row.source_type,
+                sourceId: row.source_id,
+                sourceTitleOrDate: row.source_title_or_date,
+                createdAt: row.created_at,
+                stashedAt: row.stashed_at,
+            })),
+        );
+        return { items, error: null };
+    } catch (error) {
+        return {
+            items: [],
+            error: error instanceof Error ? error : new Error("Unknown error"),
+        };
+    }
 };
 
 /**
  * Remove a stashed reflection (unstash)
  */
-export const unstashReflection = async (stashItemId: string): Promise<{ success: boolean; error: Error | null }> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: new Error('Not authenticated') };
-    const { error } = await supabase.from('stash').delete().eq('id', stashItemId).eq('user_id', user.id);
-    if (error) return { success: false, error };
-    return { success: true, error: null };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error : new Error('Unknown error') };
-  }
+export const unstashReflection = async (
+    stashItemId: string,
+): Promise<{ success: boolean; error: Error | null }> => {
+    try {
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user)
+            return { success: false, error: new Error("Not authenticated") };
+        const { error } = await supabase
+            .from("stash")
+            .delete()
+            .eq("id", stashItemId)
+            .eq("user_id", user.id);
+        if (error) return { success: false, error };
+        return { success: true, error: null };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error : new Error("Unknown error"),
+        };
+    }
 };
 
 /**
  * Get the count of stashed reflections for the current user
  */
-export const getStashCount = async (): Promise<{ count: number; error: Error | null }> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { count: 0, error: new Error('Not authenticated') };
-    const { count, error } = await supabase
-      .from('stash')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id);
-    if (error) return { count: 0, error };
-    return { count: count || 0, error: null };
-  } catch (error) {
-    return { count: 0, error: error instanceof Error ? error : new Error('Unknown error') };
-  }
+export const getStashCount = async (): Promise<{
+    count: number;
+    error: Error | null;
+}> => {
+    try {
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return { count: 0, error: new Error("Not authenticated") };
+        const { count, error } = await supabase
+            .from("stash")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id);
+        if (error) return { count: 0, error };
+        return { count: count || 0, error: null };
+    } catch (error) {
+        return {
+            count: 0,
+            error: error instanceof Error ? error : new Error("Unknown error"),
+        };
+    }
 };
 // src/services/supabaseService.ts
 
-import type { User } from '@supabase/supabase-js';
-import { supabase } from '@/clients/supabaseClient';
-import { AppSettings } from '@/store/settingsStore';
-import { JournalEntry, Message } from '@/store/journalStore';
-import { Conversation } from '@/store/conversationStore';
-import { insertAppFeedback } from '@/clients/supabaseClient';
-import { autoSaveJournalEntry, autoSaveMessage } from '@/services/memoryAutoSave';
-import { defaultSessionService } from '@/services/sessionService';
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/clients/supabaseClient";
+import { AppSettings } from "@/store/settingsStore";
+import { JournalEntry, Message } from "@/store/journalStore";
+import { Conversation } from "@/store/conversationStore";
+import { insertAppFeedback } from "@/clients/supabaseClient";
+import {
+    autoSaveJournalEntry,
+    autoSaveMessage,
+} from "@/services/memoryAutoSave";
+import { defaultSessionService } from "@/services/sessionService";
+import {
+    encryptText,
+    decryptText,
+    isEncrypted,
+} from "@/services/encryptionService";
+import { useSettingsStore } from "@/store/settingsStore";
+
+// Helper to check encryption capability
+const shouldEncrypt = () => useSettingsStore.getState().enableEncryption;
 
 // Keep env guard values for local-dev short-circuit checks used elsewhere
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Define schema types 
+// Define schema types
 export interface ReflectionFeedback {
-  id?: string;
-  reflection_text: string;
-  feedback_type: 'like' | 'dislike';
-  reflection_type: 'chat-response' | 'realtime-reflection';
-  created_at?: string;
-  user_id?: string;
+    id?: string;
+    reflection_text: string;
+    feedback_type: "like" | "dislike";
+    reflection_type: "chat-response" | "realtime-reflection";
+    created_at?: string;
+    user_id?: string;
 }
 
 // New interface for app user satisfaction feedback
 export interface AppFeedback {
-  id?: string;
-  user_id?: string;
-  emoji_rating: string; // "😃", "🙂", "😐", "😞"
-  additional_feedback?: string; // Text feedback for negative ratings
-  created_at?: string;
-  session_id?: string; // Optional: track which session this feedback is from
+    id?: string;
+    user_id?: string;
+    emoji_rating: string; // "😃", "🙂", "😐", "😞"
+    additional_feedback?: string; // Text feedback for negative ratings
+    created_at?: string;
+    session_id?: string; // Optional: track which session this feedback is from
 }
 
 export interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  is_beta_user: boolean;
-  created_at: string;
-  last_seen_at: string;
-  avatar_url?: string;
+    id: string;
+    name: string;
+    email: string;
+    is_beta_user: boolean;
+    created_at: string;
+    last_seen_at: string;
+    avatar_url?: string;
 }
 
 // Error type for handling errors across service
 export class SupabaseError extends Error {
-  constructor(message: string, public originalError?: any) {
-    super(message);
-    this.name = 'SupabaseError';
-  }
+    constructor(
+        message: string,
+        public originalError?: any,
+    ) {
+        super(message);
+        this.name = "SupabaseError";
+    }
 }
 
 /**
  * Submit feedback (like/dislike) for a reflection
- * 
+ *
  * @param reflectionText The full text of the reflection being rated
  * @param feedbackType Either 'like' or 'dislike'
  * @param reflectionType Type of reflection ('chat-response' or 'realtime-reflection')
  * @returns Result of the insertion operation
  */
 export const submitReflectionFeedback = async (
-  reflectionText: string,
-  feedbackType: 'like' | 'dislike',
-  reflectionType: 'chat-response' | 'realtime-reflection'
+    reflectionText: string,
+    feedbackType: "like" | "dislike",
+    reflectionType: "chat-response" | "realtime-reflection",
 ): Promise<{ success: boolean; error: Error | null }> => {
-  try {
-    // Don't submit if environment variables aren't set up
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn('Supabase environment variables not configured, feedback submission skipped');
-      // Return success anyway to avoid confusing users when developers haven't set up Supabase
-      return { success: true, error: null };
+    try {
+        // Don't submit if environment variables aren't set up
+        if (!supabaseUrl || !supabaseAnonKey) {
+            console.warn(
+                "Supabase environment variables not configured, feedback submission skipped",
+            );
+            // Return success anyway to avoid confusing users when developers haven't set up Supabase
+            return { success: true, error: null };
+        }
+
+        // Limit the reflectionText length to avoid huge payloads
+        // Truncate to 1000 chars if needed, keeping it reasonable for database storage
+        const truncatedText =
+            reflectionText.length > 1000
+                ? reflectionText.substring(0, 997) + "..."
+                : reflectionText; // TODO: consider using a more sophisticated truncation method if needed––WATCH OUT FOR THIS
+
+        // Get the current user ID if available
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
+        // Create a feedback record with the required fields
+        const feedbackRecord: ReflectionFeedback = {
+            reflection_text: truncatedText,
+            feedback_type: feedbackType,
+            reflection_type: reflectionType,
+            user_id: user?.id, // May be undefined for anonymous users
+        };
+
+        // Insert the record into the reflections_feedback table
+        const { error } = await supabase
+            .from("reflections_feedback")
+            .insert([feedbackRecord]);
+
+        if (error) {
+            console.error("Error submitting reflection feedback:", error);
+            return {
+                success: false,
+                error: new Error(`Supabase error: ${error.message}`),
+            };
+        }
+
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception when submitting reflection feedback:", error);
+        return {
+            success: false,
+            error:
+                error instanceof Error
+                    ? error
+                    : new Error("Unknown error occurred"),
+        };
     }
-
-    // Limit the reflectionText length to avoid huge payloads
-    // Truncate to 1000 chars if needed, keeping it reasonable for database storage
-    const truncatedText = reflectionText.length > 1000
-      ? reflectionText.substring(0, 997) + '...'
-      : reflectionText; // TODO: consider using a more sophisticated truncation method if needed––WATCH OUT FOR THIS
-
-    // Get the current user ID if available
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // Create a feedback record with the required fields
-    const feedbackRecord: ReflectionFeedback = {
-      reflection_text: truncatedText,
-      feedback_type: feedbackType,
-      reflection_type: reflectionType,
-      user_id: user?.id, // May be undefined for anonymous users
-    };
-
-    // Insert the record into the reflections_feedback table
-    const { error } = await supabase
-      .from('reflections_feedback')
-      .insert([feedbackRecord]);
-
-    if (error) {
-      console.error('Error submitting reflection feedback:', error);
-      return { success: false, error: new Error(`Supabase error: ${error.message}`) };
-    }
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception when submitting reflection feedback:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error : new Error('Unknown error occurred'),
-    };
-  }
 };
 
 /**
@@ -229,35 +297,44 @@ export const submitReflectionFeedback = async (
  * centralized.
  */
 export const submitAppFeedback = async (
-  emojiRating: string,
-  additionalFeedback?: string
+    emojiRating: string,
+    additionalFeedback?: string,
 ): Promise<{ success: boolean; error: Error | null }> => {
-  try {
-    // Keep the same local-dev guard behavior as before
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn('Supabase environment variables not configured, feedback submission skipped');
-      return { success: true, error: null };
+    try {
+        // Keep the same local-dev guard behavior as before
+        if (!supabaseUrl || !supabaseAnonKey) {
+            console.warn(
+                "Supabase environment variables not configured, feedback submission skipped",
+            );
+            return { success: true, error: null };
+        }
+
+        // Enrich with session id
+        const sessionId = await defaultSessionService.ensureSessionId();
+
+        // Attempt insert via the clients layer
+        const res = await insertAppFeedback({
+            emoji_rating: emojiRating,
+            additional_feedback: additionalFeedback,
+            session_id: sessionId,
+        });
+
+        if (!res.success)
+            return {
+                success: false,
+                error: res.error || new Error("Unknown client error"),
+            };
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception when submitting app feedback:", error);
+        return {
+            success: false,
+            error:
+                error instanceof Error
+                    ? error
+                    : new Error("Unknown error occurred"),
+        };
     }
-
-    // Enrich with session id
-    const sessionId = defaultSessionService.ensureSessionId();
-
-    // Attempt insert via the clients layer
-    const res = await insertAppFeedback({
-      emoji_rating: emojiRating,
-      additional_feedback: additionalFeedback,
-      session_id: sessionId,
-    });
-
-    if (!res.success) return { success: false, error: res.error || new Error('Unknown client error') };
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception when submitting app feedback:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error : new Error('Unknown error occurred'),
-    };
-  }
 };
 
 // =============================================
@@ -266,7 +343,7 @@ export const submitAppFeedback = async (
 
 /**
  * Register a new user with email and password
- * 
+ *
  * @param email User's email address
  * @param password User's password
  * @param name User's name
@@ -274,260 +351,311 @@ export const submitAppFeedback = async (
  * @returns The newly created user
  */
 export const registerUser = async (
-  email: string,
-  password: string,
-  name: string,
-  isBetaUser: boolean = false
+    email: string,
+    password: string,
+    name: string,
+    isBetaUser: boolean = false,
 ): Promise<{ user: User | null; error: SupabaseError | null }> => {
-  try {
-    // Register the user with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-          is_beta_user: isBetaUser
+    try {
+        // Register the user with Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signUp(
+            {
+                email,
+                password,
+                options: {
+                    data: {
+                        name,
+                        is_beta_user: isBetaUser,
+                    },
+                },
+            },
+        );
+
+        if (authError)
+            throw new SupabaseError("Registration failed", authError);
+        if (!authData.user)
+            throw new SupabaseError(
+                "Registration succeeded but no user returned",
+            );
+
+        // Create a profile record in the users table
+        const { error: profileError } = await supabase.from("users").insert([
+            {
+                id: authData.user.id,
+                email,
+                name,
+                is_beta_user: isBetaUser,
+            },
+        ]);
+
+        if (profileError) {
+            console.error("Error creating user profile:", profileError);
+            // We'll continue anyway since the auth user was created
         }
-      }
-    });
 
-    if (authError) throw new SupabaseError('Registration failed', authError);
-    if (!authData.user) throw new SupabaseError('Registration succeeded but no user returned');
+        // Initialize user settings
+        const { error: settingsError } = await supabase
+            .from("user_settings")
+            .insert([{ user_id: authData.user.id }]);
 
-    // Create a profile record in the users table
-    const { error: profileError } = await supabase
-      .from('users')
-      .insert([{
-        id: authData.user.id,
-        email,
-        name,
-        is_beta_user: isBetaUser
-      }]);
+        if (settingsError) {
+            console.error("Error creating user settings:", settingsError);
+            // Continue anyway
+        }
 
-    if (profileError) {
-      console.error('Error creating user profile:', profileError);
-      // We'll continue anyway since the auth user was created
+        return { user: authData.user, error: null };
+    } catch (error) {
+        console.error("Exception during user registration:", error);
+        return {
+            user: null,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Registration failed",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
     }
-
-    // Initialize user settings
-    const { error: settingsError } = await supabase
-      .from('user_settings')
-      .insert([{ user_id: authData.user.id }]);
-
-    if (settingsError) {
-      console.error('Error creating user settings:', settingsError);
-      // Continue anyway
-    }
-
-    return { user: authData.user, error: null };
-  } catch (error) {
-    console.error('Exception during user registration:', error);
-    return {
-      user: null,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Registration failed',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
 };
 
 /**
  * Login with email and password
- * 
+ *
  * @param email User's email
  * @param password User's password
  * @returns The authenticated user or error
  */
 export const loginWithEmail = async (
-  email: string,
-  password: string
+    email: string,
+    password: string,
 ): Promise<{ user: User | null; error: SupabaseError | null }> => {
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
 
-    if (error) throw new SupabaseError('Login failed', error);
-    if (!data.user) throw new SupabaseError('Login succeeded but no user returned');
+        if (error) throw new SupabaseError("Login failed", error);
+        if (!data.user)
+            throw new SupabaseError("Login succeeded but no user returned");
 
-    // Update last seen time
-    await updateLastSeen(data.user.id);
+        // Update last seen time
+        await updateLastSeen(data.user.id);
 
-    return { user: data.user, error: null };
-  } catch (error) {
-    console.error('Exception during login:', error);
-    return {
-      user: null,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Login failed',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        return { user: data.user, error: null };
+    } catch (error) {
+        console.error("Exception during login:", error);
+        return {
+            user: null,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Login failed",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 /**
  * Login with Google OAuth
- * 
+ *
  * @returns Redirect to Google OAuth login
  */
 export const loginWithGoogle = async (): Promise<void> => {
-  await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${window.location.origin}/auth/callback`
-    }
-  });
+    await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+            redirectTo: `${window.location.origin}/auth/callback`,
+        },
+    });
 };
 
 /**
  * Log out the current user
- * 
+ *
  * @returns Success status or error
  */
-export const logout = async (): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw new SupabaseError('Logout failed', error);
+export const logout = async (): Promise<{
+    success: boolean;
+    error: SupabaseError | null;
+}> => {
+    try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw new SupabaseError("Logout failed", error);
 
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception during logout:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Logout failed',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception during logout:", error);
+        return {
+            success: false,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Logout failed",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 /**
  * Get the current authenticated user
- * 
+ *
  * @returns Current user or null
  */
-export const getCurrentUser = async (): Promise<{ user: User | null; error: SupabaseError | null }> => {
-  try {
-    const { data, error } = await supabase.auth.getUser();
+export const getCurrentUser = async (): Promise<{
+    user: User | null;
+    error: SupabaseError | null;
+}> => {
+    try {
+        const { data, error } = await supabase.auth.getUser();
 
-    if (error) throw new SupabaseError('Failed to get current user', error);
+        if (error) throw new SupabaseError("Failed to get current user", error);
 
-    // If we have a user, update their last seen time
-    if (data.user) {
-      await updateLastSeen(data.user.id);
+        // If we have a user, update their last seen time
+        if (data.user) {
+            await updateLastSeen(data.user.id);
+        }
+
+        return { user: data.user, error: null };
+    } catch (error) {
+        console.error("Exception getting current user:", error);
+        return {
+            user: null,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to get current user",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
     }
-
-    return { user: data.user, error: null };
-  } catch (error) {
-    console.error('Exception getting current user:', error);
-    return {
-      user: null,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to get current user',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
 };
 
 /**
  * Get the user's profile data
- * 
+ *
  * @param userId User ID (optional, defaults to current user)
  * @returns User profile data
  */
 export const getUserProfile = async (
-  userId?: string
+    userId?: string,
 ): Promise<{ profile: UserProfile | null; error: SupabaseError | null }> => {
-  try {
-    // If no userId provided, get the current user
-    if (!userId) {
-      const { data } = await supabase.auth.getUser();
-      userId = data.user?.id;
+    try {
+        // If no userId provided, get the current user
+        if (!userId) {
+            const { data } = await supabase.auth.getUser();
+            userId = data.user?.id;
+        }
+
+        // If still no userId, return null
+        if (!userId) {
+            return {
+                profile: null,
+                error: new SupabaseError(
+                    "No user ID provided and no current user",
+                ),
+            };
+        }
+
+        const { data, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", userId)
+            .single();
+
+        if (error) throw new SupabaseError("Failed to get user profile", error);
+        if (!data) throw new SupabaseError("User profile not found");
+
+        return { profile: data as UserProfile, error: null };
+    } catch (error) {
+        console.error("Exception getting user profile:", error);
+        return {
+            profile: null,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to get user profile",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
     }
-
-    // If still no userId, return null
-    if (!userId) {
-      return { profile: null, error: new SupabaseError('No user ID provided and no current user') };
-    }
-
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error) throw new SupabaseError('Failed to get user profile', error);
-    if (!data) throw new SupabaseError('User profile not found');
-
-    return { profile: data as UserProfile, error: null };
-  } catch (error) {
-    console.error('Exception getting user profile:', error);
-    return {
-      profile: null,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to get user profile',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
 };
 
 /**
  * Update the user's last seen timestamp
- * 
+ *
  * @param userId User's ID
  */
 export const updateLastSeen = async (userId: string): Promise<void> => {
-  try {
-    await supabase
-      .from('users')
-      .update({ last_seen_at: new Date().toISOString() })
-      .eq('id', userId);
-  } catch (error) {
-    console.error('Failed to update last_seen_at:', error);
-    // Non-critical error, so we just log it and continue
-  }
+    try {
+        await supabase
+            .from("users")
+            .update({ last_seen_at: new Date().toISOString() })
+            .eq("id", userId);
+    } catch (error) {
+        console.error("Failed to update last_seen_at:", error);
+        // Non-critical error, so we just log it and continue
+    }
 };
 
 /**
  * Update user profile data
- * 
+ *
  * @param userId User ID
  * @param profileData Updated profile data
  * @returns Success status or error
  */
 export const updateUserProfile = async (
-  userId: string,
-  profileData: Partial<UserProfile>
+    userId: string,
+    profileData: Partial<UserProfile>,
 ): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    // Don't allow updating id, created_at, or email (requires special auth flow)
-    const safeUpdate = { ...profileData };
-    delete safeUpdate.id;
-    delete safeUpdate.created_at;
-    delete safeUpdate.email;
+    try {
+        // Don't allow updating id, created_at, or email (requires special auth flow)
+        const safeUpdate = { ...profileData };
+        delete safeUpdate.id;
+        delete safeUpdate.created_at;
+        delete safeUpdate.email;
 
-    const { error } = await supabase
-      .from('users')
-      .update(safeUpdate)
-      .eq('id', userId);
+        const { error } = await supabase
+            .from("users")
+            .update(safeUpdate)
+            .eq("id", userId);
 
-    if (error) throw new SupabaseError('Failed to update profile', error);
+        if (error) throw new SupabaseError("Failed to update profile", error);
 
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception updating user profile:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to update profile',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception updating user profile:", error);
+        return {
+            success: false,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to update profile",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 // =============================================
@@ -536,221 +664,290 @@ export const updateUserProfile = async (
 
 /**
  * Create a journal entry in the database
- * 
+ *
  * @param entry Journal entry object
  * @returns The created entry with server ID
  */
 export const createJournalEntry = async (
-  entry: Omit<JournalEntry, 'id'> & { id?: string }
+    entry: Omit<JournalEntry, "id"> & { id?: string },
 ): Promise<{ entry: JournalEntry | null; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
-
-    // Prepare entry data
-    const entryData = {
-      user_id: user.id,
-      title: entry.title,
-      content: entry.content,
-      date: entry.date,
-      external_id: entry.id // Store client-side ID as external_id
-    };
-
-    // Insert entry
-    const { data, error } = await supabase
-      .from('journal_entries')
-      .insert([entryData])
-      .select()
-      .single();
-
-    if (error) throw new SupabaseError('Failed to create journal entry', error);
-    if (!data) throw new SupabaseError('Entry creation succeeded but no entry returned');
-
-    // Map the returned entry to match the app's JournalEntry format
-    const createdEntry: JournalEntry = {
-      id: entry.id || data.id, // Use the original client ID if available
-      title: data.title,
-      content: data.content,
-      date: data.date,
-      chatId: entry.chatId
-    };
-
-    // Fire-and-forget: auto-save the newly created entry into mem0 (client-side)
     try {
-      void autoSaveJournalEntry(createdEntry);
-    } catch (err) {
-      console.warn('autoSaveJournalEntry failed:', err);
-    }
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    return { entry: createdEntry, error: null };
-  } catch (error) {
-    console.error('Exception creating journal entry:', error);
-    return {
-      entry: null,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to create journal entry',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        // Prepare entry data
+        const entryData = {
+            user_id: user.id,
+            title: shouldEncrypt()
+                ? await encryptText(entry.title, user.id)
+                : entry.title,
+            content: shouldEncrypt()
+                ? await encryptText(entry.content, user.id)
+                : entry.content,
+            date: entry.date,
+            external_id: entry.id, // Store client-side ID as external_id
+        };
+
+        // Insert entry
+        const { data, error } = await supabase
+            .from("journal_entries")
+            .insert([entryData])
+            .select()
+            .single();
+
+        if (error)
+            throw new SupabaseError("Failed to create journal entry", error);
+        if (!data)
+            throw new SupabaseError(
+                "Entry creation succeeded but no entry returned",
+            );
+
+        // Map the returned entry to match the app's JournalEntry format
+        const createdEntry: JournalEntry = {
+            id: entry.id || data.id, // Use the original client ID if available
+            title: data.title,
+            content: data.content,
+            date: data.date,
+            chatId: entry.chatId,
+        };
+
+        // Fire-and-forget: auto-save the newly created entry into mem0 (client-side)
+        try {
+            void autoSaveJournalEntry(createdEntry);
+        } catch (err) {
+            console.warn("autoSaveJournalEntry failed:", err);
+        }
+
+        return { entry: createdEntry, error: null };
+    } catch (error) {
+        console.error("Exception creating journal entry:", error);
+        return {
+            entry: null,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to create journal entry",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 /**
  * Get all journal entries for the current user
- * 
+ *
  * @returns Array of journal entries
  */
-export const getUserJournalEntries = async (): Promise<{ entries: JournalEntry[]; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+export const getUserJournalEntries = async (): Promise<{
+    entries: JournalEntry[];
+    error: SupabaseError | null;
+}> => {
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Get entries
-    const { data, error } = await supabase
-      .from('journal_entries')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false });
+        // Get entries
+        const { data, error } = await supabase
+            .from("journal_entries")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("date", { ascending: false });
 
-    if (error) throw new SupabaseError('Failed to fetch journal entries', error);
+        if (error)
+            throw new SupabaseError("Failed to fetch journal entries", error);
 
-    // Map to app's JournalEntry format
-    const entries: JournalEntry[] = data.map(entry => ({
-      id: entry.external_id || entry.id, // Prefer client ID if available
-      title: entry.title,
-      content: entry.content,
-      date: entry.date,
-      // We'll need to fetch chatId separately or via a join
-    }));
+        // Map to app's JournalEntry format
+        const entries: JournalEntry[] = await Promise.all(
+            data.map(async (entry) => ({
+                id: entry.external_id || entry.id, // Prefer client ID if available
+                title: isEncrypted(entry.title)
+                    ? await decryptText(entry.title, entry.user_id).catch(
+                          () => entry.title,
+                      )
+                    : entry.title,
+                content: isEncrypted(entry.content)
+                    ? await decryptText(entry.content, entry.user_id).catch(
+                          () => entry.content,
+                      )
+                    : entry.content,
+                date: entry.date,
+                // We'll need to fetch chatId separately or via a join
+            })),
+        );
 
-    return { entries, error: null };
-  } catch (error) {
-    console.error('Exception getting journal entries:', error);
-    return {
-      entries: [],
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to get journal entries',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        return { entries, error: null };
+    } catch (error) {
+        console.error("Exception getting journal entries:", error);
+        return {
+            entries: [],
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to get journal entries",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 /**
  * Update a journal entry
- * 
+ *
  * @param entry The entry to update
  * @returns Updated entry or error
  */
 export const updateJournalEntry = async (
-  entry: JournalEntry
+    entry: JournalEntry,
 ): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Find the entry by external_id
-    const { data: existingEntry, error: fetchError } = await supabase
-      .from('journal_entries')
-      .select('id')
-      .eq('external_id', entry.id)
-      .eq('user_id', user.id)
-      .single();
+        // Find the entry by external_id
+        const { data: existingEntry, error: fetchError } = await supabase
+            .from("journal_entries")
+            .select("id")
+            .eq("external_id", entry.id)
+            .eq("user_id", user.id)
+            .single();
 
-    if (fetchError) throw new SupabaseError('Failed to find journal entry', fetchError);
-    if (!existingEntry) throw new SupabaseError('Entry not found');
+        if (fetchError)
+            throw new SupabaseError("Failed to find journal entry", fetchError);
+        if (!existingEntry) throw new SupabaseError("Entry not found");
 
-    // Update the entry
-    const { error } = await supabase
-      .from('journal_entries')
-      .update({
-        title: entry.title,
-        content: entry.content,
-        date: entry.date,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', existingEntry.id);
+        // Update the entry
+        const { error } = await supabase
+            .from("journal_entries")
+            .update({
+                title: shouldEncrypt()
+                    ? await encryptText(entry.title, user.id)
+                    : entry.title,
+                content: shouldEncrypt()
+                    ? await encryptText(entry.content, user.id)
+                    : entry.content,
+                date: entry.date,
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingEntry.id);
 
-    if (error) throw new SupabaseError('Failed to update journal entry', error);
+        if (error)
+            throw new SupabaseError("Failed to update journal entry", error);
 
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception updating journal entry:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to update journal entry',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception updating journal entry:", error);
+        return {
+            success: false,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to update journal entry",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 /**
  * Delete a journal entry
- * 
+ *
  * @param entryId ID of the entry to delete
  * @returns Success status or error
  */
 export const deleteJournalEntry = async (
-  entryId: string
+    entryId: string,
 ): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Find the entry by external_id
-    const { data: existingEntry, error: fetchError } = await supabase
-      .from('journal_entries')
-      .select('id')
-      .eq('external_id', entryId)
-      .eq('user_id', user.id)
-      .single();
+        // Find the entry by external_id
+        const { data: existingEntry, error: fetchError } = await supabase
+            .from("journal_entries")
+            .select("id")
+            .eq("external_id", entryId)
+            .eq("user_id", user.id)
+            .single();
 
-    if (fetchError) {
-      // If not found by external_id, try direct id
-      const { data: directEntry, error: directFetchError } = await supabase
-        .from('journal_entries')
-        .select('id')
-        .eq('id', entryId)
-        .eq('user_id', user.id)
-        .single();
+        if (fetchError) {
+            // If not found by external_id, try direct id
+            const { data: directEntry, error: directFetchError } =
+                await supabase
+                    .from("journal_entries")
+                    .select("id")
+                    .eq("id", entryId)
+                    .eq("user_id", user.id)
+                    .single();
 
-      if (directFetchError) throw new SupabaseError('Failed to find journal entry', directFetchError);
-      if (!directEntry) throw new SupabaseError('Entry not found');
+            if (directFetchError)
+                throw new SupabaseError(
+                    "Failed to find journal entry",
+                    directFetchError,
+                );
+            if (!directEntry) throw new SupabaseError("Entry not found");
 
-      // Delete the direct entry
-      const { error } = await supabase
-        .from('journal_entries')
-        .delete()
-        .eq('id', directEntry.id);
+            // Delete the direct entry
+            const { error } = await supabase
+                .from("journal_entries")
+                .delete()
+                .eq("id", directEntry.id);
 
-      if (error) throw new SupabaseError('Failed to delete journal entry', error);
-    } else {
-      // Delete the entry found by external_id
-      const { error } = await supabase
-        .from('journal_entries')
-        .delete()
-        .eq('id', existingEntry.id);
+            if (error)
+                throw new SupabaseError(
+                    "Failed to delete journal entry",
+                    error,
+                );
+        } else {
+            // Delete the entry found by external_id
+            const { error } = await supabase
+                .from("journal_entries")
+                .delete()
+                .eq("id", existingEntry.id);
 
-      if (error) throw new SupabaseError('Failed to delete journal entry', error);
+            if (error)
+                throw new SupabaseError(
+                    "Failed to delete journal entry",
+                    error,
+                );
+        }
+
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception deleting journal entry:", error);
+        return {
+            success: false,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to delete journal entry",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
     }
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception deleting journal entry:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to delete journal entry',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
 };
 
 // =============================================
@@ -759,245 +956,310 @@ export const deleteJournalEntry = async (
 
 /**
  * Create a thread (conversation)
- * 
+ *
  * @param thread Thread data
  * @returns Created thread
  */
 export const createThread = async (
-  thread: Partial<Conversation> & { entryId?: string }
+    thread: Partial<Conversation> & { entryId?: string },
 ): Promise<{ thread: Conversation | null; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Get journal entry DB id if provided
-    let journalEntryDbId: string | null = null;
-    if (thread.entryId) {
-      const { data: entry } = await supabase
-        .from('journal_entries')
-        .select('id')
-        .eq('external_id', thread.entryId)
-        .eq('user_id', user.id)
-        .single();
+        // Get journal entry DB id if provided
+        let journalEntryDbId: string | null = null;
+        if (thread.entryId) {
+            const { data: entry } = await supabase
+                .from("journal_entries")
+                .select("id")
+                .eq("external_id", thread.entryId)
+                .eq("user_id", user.id)
+                .single();
 
-      if (entry) {
-        journalEntryDbId = entry.id;
-      }
+            if (entry) {
+                journalEntryDbId = entry.id;
+            }
+        }
+
+        // Create thread
+        const threadData = {
+            user_id: user.id,
+            title:
+                shouldEncrypt() && thread.title
+                    ? await encryptText(thread.title, user.id)
+                    : thread.title || "New Conversation",
+            is_global: !thread.entryId,
+            journal_entry_id: journalEntryDbId,
+            external_id: thread.id, // Store the client-side ID
+            created_at: thread.date || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+
+        const { data, error } = await supabase
+            .from("threads")
+            .insert([threadData])
+            .select()
+            .single();
+
+        if (error) throw new SupabaseError("Failed to create thread", error);
+        if (!data)
+            throw new SupabaseError(
+                "Thread creation succeeded but no thread returned",
+            );
+
+        // Map to app's Conversation format
+        const createdThread: Conversation = {
+            id: thread.id || data.id,
+            title: data.title,
+            date: data.created_at,
+            lastMessage: undefined,
+            isGlobal: data.is_global,
+        };
+
+        return { thread: createdThread, error: null };
+    } catch (error) {
+        console.error("Exception creating thread:", error);
+        return {
+            thread: null,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to create thread",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
     }
-
-    // Create thread
-    const threadData = {
-      user_id: user.id,
-      title: thread.title || 'New Conversation',
-      is_global: !thread.entryId,
-      journal_entry_id: journalEntryDbId,
-      external_id: thread.id, // Store the client-side ID
-      created_at: thread.date || new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    const { data, error } = await supabase
-      .from('threads')
-      .insert([threadData])
-      .select()
-      .single();
-
-    if (error) throw new SupabaseError('Failed to create thread', error);
-    if (!data) throw new SupabaseError('Thread creation succeeded but no thread returned');
-
-    // Map to app's Conversation format
-    const createdThread: Conversation = {
-      id: thread.id || data.id,
-      title: data.title,
-      date: data.created_at,
-      lastMessage: undefined,
-      isGlobal: data.is_global
-    };
-
-    return { thread: createdThread, error: null };
-  } catch (error) {
-    console.error('Exception creating thread:', error);
-    return {
-      thread: null,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to create thread',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
 };
 
 /**
  * Get all threads/conversations for the current user
- * 
+ *
  * @returns Array of conversations
  */
-export const getUserThreads = async (): Promise<{ threads: Conversation[]; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+export const getUserThreads = async (): Promise<{
+    threads: Conversation[];
+    error: SupabaseError | null;
+}> => {
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Get threads
-    const { data, error } = await supabase
-      .from('threads')
-      .select(`
+        // Get threads
+        const { data, error } = await supabase
+            .from("threads")
+            .select(
+                `
         *,
         messages:messages(*, created_at)
-      `)
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false });
+      `,
+            )
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false });
 
-    if (error) throw new SupabaseError('Failed to fetch threads', error);
+        if (error) throw new SupabaseError("Failed to fetch threads", error);
 
-    // Map to app's Conversation format
-    const threads: Conversation[] = data.map(thread => {
-      // Find the latest message text for lastMessage
-      let lastMessage: string | undefined;
-      if (thread.messages && thread.messages.length > 0) {
-        // Sort by timestamp and get the latest
-        const latestMessage = [...thread.messages].sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0];
-        lastMessage = latestMessage.text;
-      }
+        // Map to app's Conversation format
+        const threadsPromise: Promise<Conversation>[] = data.map(
+            async (thread) => {
+                // Find the latest message text for lastMessage
+                let lastMessage: string | undefined;
+                if (thread.messages && thread.messages.length > 0) {
+                    // Sort by timestamp and get the latest
+                    const latestMessage = [...thread.messages].sort(
+                        (a, b) =>
+                            new Date(b.created_at).getTime() -
+                            new Date(a.created_at).getTime(),
+                    )[0];
+                    lastMessage = latestMessage.text;
+                }
 
-      return {
-        id: thread.external_id || thread.id,
-        title: thread.title,
-        date: thread.created_at,
-        lastMessage,
-        isGlobal: thread.is_global
-      };
-    });
+                return {
+                    id: thread.external_id || thread.id,
+                    title: isEncrypted(thread.title)
+                        ? await decryptText(thread.title, thread.user_id).catch(
+                              () => thread.title,
+                          )
+                        : thread.title,
+                    date: thread.created_at,
+                    lastMessage: isEncrypted(lastMessage ?? "")
+                        ? await decryptText(
+                              lastMessage ?? "",
+                              thread.user_id,
+                          ).catch(() => lastMessage)
+                        : lastMessage,
+                    isGlobal: thread.is_global,
+                };
+            },
+        );
 
-    return { threads, error: null };
-  } catch (error) {
-    console.error('Exception getting threads:', error);
-    return {
-      threads: [],
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to get threads',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        const threads = await Promise.all(threadsPromise);
+
+        return { threads, error: null };
+    } catch (error) {
+        console.error("Exception getting threads:", error);
+        return {
+            threads: [],
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to get threads",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 /**
  * Update a thread/conversation
- * 
+ *
  * @param threadId ID of the thread to update
  * @param updates Updates to apply
  * @returns Success status
  */
 export const updateThread = async (
-  threadId: string,
-  updates: Partial<Conversation>
+    threadId: string,
+    updates: Partial<Conversation>,
 ): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Find the thread by external_id
-    const { data: existingThread, error: fetchError } = await supabase
-      .from('threads')
-      .select('id')
-      .eq('external_id', threadId)
-      .eq('user_id', user.id)
-      .single();
+        // Find the thread by external_id
+        const { data: existingThread, error: fetchError } = await supabase
+            .from("threads")
+            .select("id")
+            .eq("external_id", threadId)
+            .eq("user_id", user.id)
+            .single();
 
-    if (fetchError) throw new SupabaseError('Failed to find thread', fetchError);
-    if (!existingThread) throw new SupabaseError('Thread not found');
+        if (fetchError)
+            throw new SupabaseError("Failed to find thread", fetchError);
+        if (!existingThread) throw new SupabaseError("Thread not found");
 
-    // Update the thread
-    const { error } = await supabase
-      .from('threads')
-      .update({
-        title: updates.title,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', existingThread.id);
+        // Update the thread
+        const { error } = await supabase
+            .from("threads")
+            .update({
+                title:
+                    shouldEncrypt() && updates.title
+                        ? await encryptText(updates.title, user.id)
+                        : updates.title,
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingThread.id);
 
-    if (error) throw new SupabaseError('Failed to update thread', error);
+        if (error) throw new SupabaseError("Failed to update thread", error);
 
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception updating thread:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to update thread',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception updating thread:", error);
+        return {
+            success: false,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to update thread",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 /**
  * Delete a thread/conversation
- * 
+ *
  * @param threadId ID of the thread to delete
  * @returns Success status
  */
 export const deleteThread = async (
-  threadId: string
+    threadId: string,
 ): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Find the thread by external_id
-    const { data: existingThread, error: fetchError } = await supabase
-      .from('threads')
-      .select('id')
-      .eq('external_id', threadId)
-      .eq('user_id', user.id)
-      .single();
+        // Find the thread by external_id
+        const { data: existingThread, error: fetchError } = await supabase
+            .from("threads")
+            .select("id")
+            .eq("external_id", threadId)
+            .eq("user_id", user.id)
+            .single();
 
-    if (fetchError) {
-      // If not found by external_id, try direct id
-      const { data: directThread, error: directFetchError } = await supabase
-        .from('threads')
-        .select('id')
-        .eq('id', threadId)
-        .eq('user_id', user.id)
-        .single();
+        if (fetchError) {
+            // If not found by external_id, try direct id
+            const { data: directThread, error: directFetchError } =
+                await supabase
+                    .from("threads")
+                    .select("id")
+                    .eq("id", threadId)
+                    .eq("user_id", user.id)
+                    .single();
 
-      if (directFetchError) throw new SupabaseError('Failed to find thread', directFetchError);
-      if (!directThread) throw new SupabaseError('Thread not found');
+            if (directFetchError)
+                throw new SupabaseError(
+                    "Failed to find thread",
+                    directFetchError,
+                );
+            if (!directThread) throw new SupabaseError("Thread not found");
 
-      // Delete the direct thread
-      const { error } = await supabase
-        .from('threads')
-        .delete()
-        .eq('id', directThread.id);
+            // Delete the direct thread
+            const { error } = await supabase
+                .from("threads")
+                .delete()
+                .eq("id", directThread.id);
 
-      if (error) throw new SupabaseError('Failed to delete thread', error);
-    } else {
-      // Delete the thread found by external_id
-      const { error } = await supabase
-        .from('threads')
-        .delete()
-        .eq('id', existingThread.id);
+            if (error)
+                throw new SupabaseError("Failed to delete thread", error);
+        } else {
+            // Delete the thread found by external_id
+            const { error } = await supabase
+                .from("threads")
+                .delete()
+                .eq("id", existingThread.id);
 
-      if (error) throw new SupabaseError('Failed to delete thread', error);
+            if (error)
+                throw new SupabaseError("Failed to delete thread", error);
+        }
+
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception deleting thread:", error);
+        return {
+            success: false,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to delete thread",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
     }
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception deleting thread:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to delete thread',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
 };
 
 // =============================================
@@ -1006,282 +1268,339 @@ export const deleteThread = async (
 
 /**
  * Add a message to a thread
- * 
+ *
  * @param message Message to add
  * @returns Created message
  */
 export const addMessage = async (
-  message: Omit<Message, 'messageId'> & { messageId?: string; threadId: string }
+    message: Omit<Message, "messageId"> & {
+        messageId?: string;
+        threadId: string;
+    },
 ): Promise<{ message: Message | null; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
-
-    // Get thread DB id
-    const { data: thread, error: threadError } = await supabase
-      .from('threads')
-      .select('id')
-      .eq('external_id', message.threadId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (threadError || !thread) throw new SupabaseError('Thread not found');
-
-    // Get journal entry DB id if provided
-    let journalEntryDbId: string | null = null;
-    if (message.entryId) {
-      const { data: entry } = await supabase
-        .from('journal_entries')
-        .select('id')
-        .eq('external_id', message.entryId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (entry) {
-        journalEntryDbId = entry.id;
-      }
-    }
-
-    // Add message
-    const messageData = {
-      thread_id: thread.id,
-      sender: message.sender,
-      text: message.text,
-      journal_entry_id: journalEntryDbId,
-      is_realtime_reflection: message.isRealtimeReflection || false,
-      reflected_content: message.reflectedContent,
-      is_read: message.isRead || false,
-      created_at: message.timestamp || new Date().toISOString(),
-      external_id: message.messageId
-    };
-
-    const { data, error } = await supabase
-      .from('messages')
-      .insert([messageData])
-      .select()
-      .single();
-
-    if (error) throw new SupabaseError('Failed to add message', error);
-    if (!data) throw new SupabaseError('Message creation succeeded but no message returned');
-
-    // Update thread's updated_at
-    await supabase
-      .from('threads')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', thread.id);
-
-    // Map to app's Message format
-    const createdMessage: Message = {
-      messageId: message.messageId || data.id,
-      sender: data.sender,
-      text: data.text,
-      entryId: message.entryId,
-      timestamp: data.created_at,
-      threadId: message.threadId,
-      isRealtimeReflection: data.is_realtime_reflection,
-      reflectedContent: data.reflected_content,
-      isRead: data.is_read
-    };
-
-    // Fire-and-forget: auto-save the created message into mem0 for testing
     try {
-      void autoSaveMessage(createdMessage);
-    } catch (err) {
-      console.warn('autoSaveMessage failed:', err);
-    }
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    return { message: createdMessage, error: null };
-  } catch (error) {
-    console.error('Exception adding message:', error);
-    return {
-      message: null,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to add message',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        // Get thread DB id
+        const { data: thread, error: threadError } = await supabase
+            .from("threads")
+            .select("id")
+            .eq("external_id", message.threadId)
+            .eq("user_id", user.id)
+            .single();
+
+        if (threadError || !thread) throw new SupabaseError("Thread not found");
+
+        // Get journal entry DB id if provided
+        let journalEntryDbId: string | null = null;
+        if (message.entryId) {
+            const { data: entry } = await supabase
+                .from("journal_entries")
+                .select("id")
+                .eq("external_id", message.entryId)
+                .eq("user_id", user.id)
+                .single();
+
+            if (entry) {
+                journalEntryDbId = entry.id;
+            }
+        }
+
+        // Add message
+        const messageData = {
+            thread_id: thread.id,
+            sender: message.sender,
+            text: shouldEncrypt()
+                ? await encryptText(message.text, user.id)
+                : message.text,
+            journal_entry_id: journalEntryDbId,
+            is_realtime_reflection: message.isRealtimeReflection || false,
+            reflected_content:
+                shouldEncrypt() && message.reflectedContent
+                    ? await encryptText(message.reflectedContent, user.id)
+                    : message.reflectedContent,
+            is_read: message.isRead || false,
+            created_at: message.timestamp || new Date().toISOString(),
+            external_id: message.messageId,
+        };
+
+        const { data, error } = await supabase
+            .from("messages")
+            .insert([messageData])
+            .select()
+            .single();
+
+        if (error) throw new SupabaseError("Failed to add message", error);
+        if (!data)
+            throw new SupabaseError(
+                "Message creation succeeded but no message returned",
+            );
+
+        // Update thread's updated_at
+        await supabase
+            .from("threads")
+            .update({ updated_at: new Date().toISOString() })
+            .eq("id", thread.id);
+
+        // Map to app's Message format
+        const createdMessage: Message = {
+            messageId: message.messageId || data.id,
+            sender: data.sender,
+            text: data.text,
+            entryId: message.entryId,
+            timestamp: data.created_at,
+            threadId: message.threadId,
+            isRealtimeReflection: data.is_realtime_reflection,
+            reflectedContent: data.reflected_content,
+            isRead: data.is_read,
+        };
+
+        // Fire-and-forget: auto-save the created message into mem0 for testing
+        try {
+            void autoSaveMessage(createdMessage);
+        } catch (err) {
+            console.warn("autoSaveMessage failed:", err);
+        }
+
+        return { message: createdMessage, error: null };
+    } catch (error) {
+        console.error("Exception adding message:", error);
+        return {
+            message: null,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to add message",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 /**
  * Get messages for a specific thread
- * 
+ *
  * @param threadId Thread ID
  * @returns Array of messages
  */
 export const getMessagesForThread = async (
-  threadId: string
+    threadId: string,
 ): Promise<{ messages: Message[]; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Get thread DB id
-    const { data: thread, error: threadError } = await supabase
-      .from('threads')
-      .select('id')
-      .eq('external_id', threadId)
-      .eq('user_id', user.id)
-      .single();
+        // Get thread DB id
+        const { data: thread, error: threadError } = await supabase
+            .from("threads")
+            .select("id")
+            .eq("external_id", threadId)
+            .eq("user_id", user.id)
+            .single();
 
-    if (threadError || !thread) throw new SupabaseError('Thread not found');
+        if (threadError || !thread) throw new SupabaseError("Thread not found");
 
-    // Get messages
-    const { data, error } = await supabase
-      .from('messages')
-      .select(`
+        // Get messages
+        const { data, error } = await supabase
+            .from("messages")
+            .select(
+                `
         *,
         journal_entry:journal_entries(external_id)
-      `)
-      .eq('thread_id', thread.id)
-      .order('created_at', { ascending: true });
+      `,
+            )
+            .eq("thread_id", thread.id)
+            .order("created_at", { ascending: true });
 
-    if (error) throw new SupabaseError('Failed to fetch messages', error);
+        if (error) throw new SupabaseError("Failed to fetch messages", error);
 
-    // Map to app's Message format
-    const messages: Message[] = data.map(msg => ({
-      messageId: msg.external_id || msg.id,
-      sender: msg.sender,
-      text: msg.text,
-      entryId: msg.journal_entry?.external_id,
-      timestamp: msg.created_at,
-      threadId,
-      isRealtimeReflection: msg.is_realtime_reflection,
-      reflectedContent: msg.reflected_content,
-      isRead: msg.is_read
-    }));
+        // Map to app's Message format
+        const messages: Message[] = await Promise.all(
+            data.map(async (msg) => ({
+                messageId: msg.external_id || msg.id,
+                sender: msg.sender,
+                text: isEncrypted(msg.text)
+                    ? await decryptText(msg.text, user.id).catch(() => msg.text)
+                    : msg.text,
+                entryId: msg.journal_entry?.external_id,
+                timestamp: msg.created_at,
+                threadId,
+                isRealtimeReflection: msg.is_realtime_reflection,
+                reflectedContent: isEncrypted(msg.reflected_content)
+                    ? await decryptText(msg.reflected_content, user.id).catch(
+                          () => msg.reflected_content,
+                      )
+                    : msg.reflected_content,
+                isRead: msg.is_read,
+            })),
+        );
 
-    return { messages, error: null };
-  } catch (error) {
-    console.error('Exception getting messages:', error);
-    return {
-      messages: [],
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to get messages',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        return { messages, error: null };
+    } catch (error) {
+        console.error("Exception getting messages:", error);
+        return {
+            messages: [],
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to get messages",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 /**
  * Update a message
- * 
+ *
  * @param messageId Message ID
  * @param updates Updates to apply
  * @returns Success status
  */
 export const updateMessage = async (
-  messageId: string,
-  updates: Partial<Message>
+    messageId: string,
+    updates: Partial<Message>,
 ): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Find the message by external_id
-    const { data: existingMessage, error: fetchError } = await supabase
-      .from('messages')
-      .select('id, thread_id, threads!inner(user_id)')
-      .eq('external_id', messageId)
-      .eq('threads.user_id', user.id)
-      .single();
+        // Find the message by external_id
+        const { data: existingMessage, error: fetchError } = await supabase
+            .from("messages")
+            .select("id, thread_id, threads!inner(user_id)")
+            .eq("external_id", messageId)
+            .eq("threads.user_id", user.id)
+            .single();
 
-    if (fetchError) throw new SupabaseError('Failed to find message', fetchError);
-    if (!existingMessage) throw new SupabaseError('Message not found or access denied');
+        if (fetchError)
+            throw new SupabaseError("Failed to find message", fetchError);
+        if (!existingMessage)
+            throw new SupabaseError("Message not found or access denied");
 
-    // Update allowed fields
-    const updateData: any = {};
-    if (updates.text !== undefined) updateData.text = updates.text;
-    if (updates.isRead !== undefined) updateData.is_read = updates.isRead;
+        // Update allowed fields
+        const updateData: any = {};
+        if (updates.text !== undefined) {
+            updateData.text = shouldEncrypt()
+                ? await encryptText(updates.text, user.id)
+                : updates.text;
+        }
+        if (updates.isRead !== undefined) updateData.is_read = updates.isRead;
 
-    // Only update if there are changes
-    if (Object.keys(updateData).length > 0) {
-      const { error } = await supabase
-        .from('messages')
-        .update(updateData)
-        .eq('id', existingMessage.id);
+        // Only update if there are changes
+        if (Object.keys(updateData).length > 0) {
+            const { error } = await supabase
+                .from("messages")
+                .update(updateData)
+                .eq("id", existingMessage.id);
 
-      if (error) throw new SupabaseError('Failed to update message', error);
+            if (error)
+                throw new SupabaseError("Failed to update message", error);
 
-      // If updating text, also update thread's updated_at
-      if (updates.text) {
-        await supabase
-          .from('threads')
-          .update({ updated_at: new Date().toISOString() })
-          .eq('id', existingMessage.thread_id);
-      }
+            // If updating text, also update thread's updated_at
+            if (updates.text) {
+                await supabase
+                    .from("threads")
+                    .update({ updated_at: new Date().toISOString() })
+                    .eq("id", existingMessage.thread_id);
+            }
+        }
+
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception updating message:", error);
+        return {
+            success: false,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to update message",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
     }
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception updating message:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to update message',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
 };
 
 /**
  * Mark all messages in a thread as read
- * 
+ *
  * @param threadId Thread ID
  * @param options Optional filter options
  * @returns Success status
  */
 export const markAllMessagesAsRead = async (
-  threadId: string,
-  options?: { sender?: 'user' | 'ai' }
+    threadId: string,
+    options?: { sender?: "user" | "ai" },
 ): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Get thread DB id
-    const { data: thread, error: threadError } = await supabase
-      .from('threads')
-      .select('id')
-      .eq('external_id', threadId)
-      .eq('user_id', user.id)
-      .single();
+        // Get thread DB id
+        const { data: thread, error: threadError } = await supabase
+            .from("threads")
+            .select("id")
+            .eq("external_id", threadId)
+            .eq("user_id", user.id)
+            .single();
 
-    if (threadError || !thread) throw new SupabaseError('Thread not found');
+        if (threadError || !thread) throw new SupabaseError("Thread not found");
 
-    // Build query
-    let query = supabase
-      .from('messages')
-      .update({ is_read: true })
-      .eq('thread_id', thread.id);
+        // Build query
+        let query = supabase
+            .from("messages")
+            .update({ is_read: true })
+            .eq("thread_id", thread.id);
 
-    // Apply sender filter if provided
-    if (options?.sender) {
-      query = query.eq('sender', options.sender);
+        // Apply sender filter if provided
+        if (options?.sender) {
+            query = query.eq("sender", options.sender);
+        }
+
+        // Execute update
+        const { error } = await query;
+
+        if (error)
+            throw new SupabaseError("Failed to mark messages as read", error);
+
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception marking messages as read:", error);
+        return {
+            success: false,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to mark messages as read",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
     }
-
-    // Execute update
-    const { error } = await query;
-
-    if (error) throw new SupabaseError('Failed to mark messages as read', error);
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception marking messages as read:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to mark messages as read',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
 };
 
 // =============================================
@@ -1290,177 +1609,214 @@ export const markAllMessagesAsRead = async (
 
 /**
  * Get user settings
- * 
+ *
  * @returns User settings
  */
-export const getUserSettings = async (): Promise<{ settings: AppSettings | null; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+export const getUserSettings = async (): Promise<{
+    settings: AppSettings | null;
+    error: SupabaseError | null;
+}> => {
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Get settings
-    const { data, error } = await supabase
-      .from('user_settings')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+        // Get settings
+        const { data, error } = await supabase
+            .from("user_settings")
+            .select("*")
+            .eq("user_id", user.id)
+            .single();
 
-    if (error) throw new SupabaseError('Failed to fetch user settings', error);
-    if (!data) {
-      // Create default settings if not found
-      const defaultSettings: AppSettings = {
-        reflectionSimilarityThreshold: 0.90,
-        reflectionMinLength: 30,
-        theme: 'system',
-        showReflectionLabels: true,
-        autoReflect: true,
-        enableMemories: true,
-        showNudges: true,
-        enableWhisper: false,
-        enableSharing: false,
-        completedTours: [],
-        aiProvider: 'cloud',
-        localModelId: 'Qwen2-1.5B-Instruct-q4f32_1-MLC',
-      };
+        if (error)
+            throw new SupabaseError("Failed to fetch user settings", error);
+        if (!data) {
+            // Create default settings if not found
+            const defaultSettings: AppSettings = {
+                reflectionSimilarityThreshold: 0.9,
+                reflectionMinLength: 30,
+                theme: "system",
+                showReflectionLabels: true,
+                autoReflect: true,
+                enableMemories: true,
+                showNudges: true,
+                enableWhisper: false,
+                enableSharing: false,
+                completedTours: [],
+                aiProvider: "cloud",
+                localModelId: "Qwen2-1.5B-Instruct-q4f32_1-MLC",
+            };
 
-      await supabase
-        .from('user_settings')
-        .insert([{ user_id: user.id, ...defaultSettings }]);
+            await supabase
+                .from("user_settings")
+                .insert([{ user_id: user.id, ...defaultSettings }]);
 
-      return { settings: defaultSettings, error: null };
+            return { settings: defaultSettings, error: null };
+        }
+
+        // Map to app's AppSettings format
+        const settings: AppSettings = {
+            reflectionSimilarityThreshold: data.reflection_similarity_threshold,
+            reflectionMinLength: data.reflection_min_length,
+            theme: data.theme as "system" | "light" | "dark",
+            showReflectionLabels: data.show_reflection_labels,
+            autoReflect: data.auto_reflect,
+            enableMemories: data.enable_memories ?? true,
+            showNudges: data.show_nudges ?? true,
+            enableWhisper: data.enable_whisper ?? false,
+            enableSharing: data.enable_sharing ?? false,
+            completedTours: data.completed_tours || [],
+            aiProvider: data.ai_provider ?? "cloud",
+            localModelId:
+                data.local_model_id ?? "Qwen2-1.5B-Instruct-q4f32_1-MLC",
+        };
+
+        return { settings, error: null };
+    } catch (error) {
+        console.error("Exception getting user settings:", error);
+        return {
+            settings: null,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to get user settings",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
     }
-
-    // Map to app's AppSettings format
-    const settings: AppSettings = {
-      reflectionSimilarityThreshold: data.reflection_similarity_threshold,
-      reflectionMinLength: data.reflection_min_length,
-      theme: data.theme as 'system' | 'light' | 'dark',
-      showReflectionLabels: data.show_reflection_labels,
-      autoReflect: data.auto_reflect,
-      enableMemories: data.enable_memories ?? true,
-      showNudges: data.show_nudges ?? true,
-      enableWhisper: data.enable_whisper ?? false,
-      enableSharing: data.enable_sharing ?? false,
-      completedTours: data.completed_tours || [],
-      aiProvider: data.ai_provider ?? 'cloud',
-      localModelId: data.local_model_id ?? 'Qwen2-1.5B-Instruct-q4f32_1-MLC',
-    };
-
-    return { settings, error: null };
-  } catch (error) {
-    console.error('Exception getting user settings:', error);
-    return {
-      settings: null,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to get user settings',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
 };
 
 /**
  * Update user settings
- * 
+ *
  * @param settings Updated settings
  * @returns Success status
  */
 export const updateUserSettings = async (
-  settings: Partial<AppSettings>
+    settings: Partial<AppSettings>,
 ): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Map to DB format
-    const dbSettings: any = {};
-    if (settings.reflectionSimilarityThreshold !== undefined) {
-      dbSettings.reflection_similarity_threshold = settings.reflectionSimilarityThreshold;
-    }
-    if (settings.reflectionMinLength !== undefined) {
-      dbSettings.reflection_min_length = settings.reflectionMinLength;
-    }
-    if (settings.theme !== undefined) {
-      dbSettings.theme = settings.theme;
-    }
-    if (settings.showReflectionLabels !== undefined) {
-      dbSettings.show_reflection_labels = settings.showReflectionLabels;
-    }
-    if (settings.autoReflect !== undefined) {
-      dbSettings.auto_reflect = settings.autoReflect;
-    }
-    if (settings.completedTours !== undefined) {
-      dbSettings.completed_tours = settings.completedTours;
-    }
+        // Map to DB format
+        const dbSettings: any = {};
+        if (settings.reflectionSimilarityThreshold !== undefined) {
+            dbSettings.reflection_similarity_threshold =
+                settings.reflectionSimilarityThreshold;
+        }
+        if (settings.reflectionMinLength !== undefined) {
+            dbSettings.reflection_min_length = settings.reflectionMinLength;
+        }
+        if (settings.theme !== undefined) {
+            dbSettings.theme = settings.theme;
+        }
+        if (settings.showReflectionLabels !== undefined) {
+            dbSettings.show_reflection_labels = settings.showReflectionLabels;
+        }
+        if (settings.autoReflect !== undefined) {
+            dbSettings.auto_reflect = settings.autoReflect;
+        }
+        if (settings.completedTours !== undefined) {
+            dbSettings.completed_tours = settings.completedTours;
+        }
 
-    // Update settings
-    const { error } = await supabase
-      .from('user_settings')
-      .update(dbSettings)
-      .eq('user_id', user.id);
+        // Update settings
+        const { error } = await supabase
+            .from("user_settings")
+            .update(dbSettings)
+            .eq("user_id", user.id);
 
-    if (error) throw new SupabaseError('Failed to update user settings', error);
+        if (error)
+            throw new SupabaseError("Failed to update user settings", error);
 
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception updating user settings:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to update user settings',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception updating user settings:", error);
+        return {
+            success: false,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to update user settings",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
+    }
 };
 
 /**
  * Mark a tour as completed
- * 
+ *
  * @param tourId ID of the completed tour
  * @returns Success status
  */
 export const markTourCompleted = async (
-  tourId: string
+    tourId: string,
 ): Promise<{ success: boolean; error: SupabaseError | null }> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new SupabaseError('Not authenticated');
+    try {
+        // Get current user
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new SupabaseError("Not authenticated");
 
-    // Get current completed tours
-    const { data, error: fetchError } = await supabase
-      .from('user_settings')
-      .select('completed_tours')
-      .eq('user_id', user.id)
-      .single();
+        // Get current completed tours
+        const { data, error: fetchError } = await supabase
+            .from("user_settings")
+            .select("completed_tours")
+            .eq("user_id", user.id)
+            .single();
 
-    if (fetchError) throw new SupabaseError('Failed to fetch user settings', fetchError);
+        if (fetchError)
+            throw new SupabaseError(
+                "Failed to fetch user settings",
+                fetchError,
+            );
 
-    // Add this tour if not already included
-    const completedTours = data?.completed_tours || [];
-    if (!completedTours.includes(tourId)) {
-      completedTours.push(tourId);
+        // Add this tour if not already included
+        const completedTours = data?.completed_tours || [];
+        if (!completedTours.includes(tourId)) {
+            completedTours.push(tourId);
 
-      const { error } = await supabase
-        .from('user_settings')
-        .update({ completed_tours: completedTours })
-        .eq('user_id', user.id);
+            const { error } = await supabase
+                .from("user_settings")
+                .update({ completed_tours: completedTours })
+                .eq("user_id", user.id);
 
-      if (error) throw new SupabaseError('Failed to update user settings', error);
+            if (error)
+                throw new SupabaseError(
+                    "Failed to update user settings",
+                    error,
+                );
+        }
+
+        return { success: true, error: null };
+    } catch (error) {
+        console.error("Exception marking tour as completed:", error);
+        return {
+            success: false,
+            error:
+                error instanceof SupabaseError
+                    ? error
+                    : new SupabaseError(
+                          "Failed to mark tour as completed",
+                          error instanceof Error
+                              ? error
+                              : new Error(String(error)),
+                      ),
+        };
     }
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Exception marking tour as completed:', error);
-    return {
-      success: false,
-      error: error instanceof SupabaseError ? error : new SupabaseError(
-        'Failed to mark tour as completed',
-        error instanceof Error ? error : new Error(String(error))
-      )
-    };
-  }
 };
+

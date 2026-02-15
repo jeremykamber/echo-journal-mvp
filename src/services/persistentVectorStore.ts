@@ -7,7 +7,8 @@ import { RestorableMemoryVectorStore } from 'langchain-js-restorable-memory-vect
 import { JournalEntry } from '@/store/journalStore';
 import { Message } from '@/store/conversationStore';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-// Persistence using browser localStorage instead of Node fs
+import { storageService } from './storageService';
+// Persistence using storageService instead of Node fs
 
 const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 500, chunkOverlap: 50 });
 
@@ -20,12 +21,12 @@ export async function initStore(): Promise<RestorableMemoryVectorStore> {
     const settings = useSettingsStore.getState();
     const storageKey = settings.vectorStorePath || 'vector_store_data';
 
-    // No directory handling needed for localStorage
+    // No directory handling needed for storageService
 
     const embedder = makeOpenRouterEmbedder();
 
-    // Load persisted data from localStorage if it exists
-    const persisted = localStorage.getItem(storageKey);
+    // Load persisted data from storageService if it exists
+    const persisted = await storageService.getItem<string>(storageKey);
     if (persisted) {
         try {
             store = new RestorableMemoryVectorStore(embedder);
@@ -33,7 +34,7 @@ export async function initStore(): Promise<RestorableMemoryVectorStore> {
             const docs = data.map(d => new Document({ pageContent: d.pageContent, metadata: d.metadata }));
             await store.addDocuments(docs);
         } catch (e) {
-            console.warn('Failed to load persisted vector store from localStorage, starting fresh:', e);
+            console.warn('Failed to load persisted vector store from storageService, starting fresh:', e);
             store = new RestorableMemoryVectorStore(embedder);
         }
     } else {
@@ -107,8 +108,8 @@ export async function persistStore(): Promise<void> {
     const storageKey = settings.vectorStorePath || 'vector_store_data';
     try {
         const data = store.toJSON(); // Serialize the store
-        localStorage.setItem(storageKey, JSON.stringify(data));
+        await storageService.setItem(storageKey, JSON.stringify(data));
     } catch (e) {
-        console.warn('Failed to persist vector store to localStorage:', e);
+        console.warn('Failed to persist vector store to storageService:', e);
     }
 }

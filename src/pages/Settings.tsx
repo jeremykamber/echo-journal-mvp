@@ -13,6 +13,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { setSessionPassword, getCachedPassword } from '@/services/encryptionService';
 import AppHeader from '@/components/AppHeader';
 
 const SettingsScreen: React.FC = () => {
@@ -24,6 +34,9 @@ const SettingsScreen: React.FC = () => {
         // Ensure the key is treated as a string for analytics
         trackSettingsChange(String(key)); // Track setting change
     };
+
+    const [showEncryptionDialog, setShowEncryptionDialog] = React.useState(false);
+    const [encryptionPassword, setEncryptionPassword] = React.useState('');
 
     React.useEffect(() => {
         const root = document.documentElement;
@@ -97,10 +110,33 @@ const SettingsScreen: React.FC = () => {
                         </Select>
                     </div>
 
-                    {/* AI Provider Settings Section */}
                     <div className="pt-6 border-t border-border">
                         <AIProviderSettings />
                     </div>
+
+                    <div className="space-y-2 pt-6 border-t border-border">
+                        <Label htmlFor="storageProvider">Data Storage Location</Label>
+                        <p className="text-sm text-muted-foreground">
+                            Choose where your data is stored. Switching will require a reload.
+                        </p>
+                        <Select
+                            value={settings.storageProvider}
+                            onValueChange={(value: 'local' | 'supabase') => {
+                                handleSettingChange('storageProvider', value);
+                                // Reload to ensure repositories are re-initialized with new setting
+                                setTimeout(() => window.location.reload(), 500);
+                            }}
+                        >
+                            <SelectTrigger id="storageProvider">
+                                <SelectValue placeholder="Select storage" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="supabase">Supabase Cloud (Default)</SelectItem>
+                                <SelectItem value="local">Local Storage (Device Only)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <div className="flex items-start space-x-4"> {/* Added spacing between checkbox and label */}
                         <Checkbox
                             id="showReflectionLabels"
@@ -122,7 +158,7 @@ const SettingsScreen: React.FC = () => {
                     {/* Feature Toggles Section */}
                     <div className="space-y-4 pt-6 border-t border-border">
                         <h3 className="text-lg font-semibold">Features</h3>
-                        
+
                         <div className="flex items-start space-x-3">
                             <Checkbox
                                 id="autoReflect"
@@ -193,8 +229,74 @@ const SettingsScreen: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Security Section */}
+                    <div className="space-y-4 pt-6 border-t border-border">
+                        <h3 className="text-lg font-semibold">Security</h3>
+
+                        <div className="flex items-start space-x-3">
+                            <Checkbox
+                                id="enableEncryption"
+                                checked={settings.enableEncryption}
+                                onCheckedChange={(checked) => {
+                                    if (checked) {
+                                        if (getCachedPassword()) {
+                                            handleSettingChange('enableEncryption', true);
+                                        } else {
+                                            setShowEncryptionDialog(true);
+                                        }
+                                    } else {
+                                        handleSettingChange('enableEncryption', false);
+                                    }
+                                }}
+                            />
+                            <div className="space-y-1">
+                                <Label htmlFor="enableEncryption">End-to-End Encryption</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Encrypt your journal entries before syncing to the cloud. You will need to enter a password to decrypt your data on this device.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <Dialog open={showEncryptionDialog} onOpenChange={setShowEncryptionDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Set Encryption Password</DialogTitle>
+                        <DialogDescription>
+                            Enter a password to encrypt your data. This password is never sent to our servers.
+                            If you lose this password, your encrypted data will be unrecoverable.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="encPassword">Password</Label>
+                            <Input
+                                id="encPassword"
+                                type="password"
+                                value={encryptionPassword}
+                                onChange={(e) => setEncryptionPassword(e.target.value)}
+                                placeholder="Enter a strong password"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowEncryptionDialog(false)}>Cancel</Button>
+                        <Button onClick={() => {
+                            if (encryptionPassword.length < 8) {
+                                alert("Password must be at least 8 characters long.");
+                                return;
+                            }
+                            setSessionPassword(encryptionPassword);
+                            handleSettingChange('enableEncryption', true);
+                            setShowEncryptionDialog(false);
+                            setEncryptionPassword('');
+                        }}>Enable Encryption</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 };

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { robustStorage } from '@/lib/robustStorage';
 
 export interface OnboardingState {
   hasCompletedOnboarding: boolean;
@@ -42,6 +43,9 @@ export const useOnboardingStore = create<OnboardingState>()(
         })),
       skipOnboarding: () => set({ hasCompletedOnboarding: true, isActive: false }),
     }),
-    { name: 'echo-onboarding-storage' }
+    {
+      name: 'echo-onboarding-storage',
+      storage: createJSONStorage(() => robustStorage),
+    }
   )
 );
