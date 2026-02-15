@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Home, Settings, MessageSquare, Info, Mail, MessageCircle, Bookmark, Sparkles } from "lucide-react"
+import { Home, Settings, MessageSquare, Info, Mail, MessageCircle, Bookmark, Sparkles, BarChart3 } from "lucide-react"
 import useJournalStore from "@/store/journalStore"
 import useConversationStore, { Conversation } from "@/store/conversationStore"
 import AnimatedButton from "@/components/AnimatedButton"
@@ -62,9 +62,9 @@ const data: { navMain: NavGroup[] } = {
           icon: <Sparkles className="h-4 w-4 mr-2" />,
         },
         {
-          title: "Stash",
-          url: "/stash",
-          icon: <Bookmark className="h-4 w-4 mr-2" />,
+          title: "Reports",
+          url: "/reports",
+          icon: <BarChart3 className="h-4 w-4 mr-2" />,
         },
         {
           title: "Privacy",

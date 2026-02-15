@@ -29,3 +29,31 @@ export interface UserPersona {
   active_goals: string[];
   last_updated: ISODateString;
 }
+
+// --- REPORTING TYPES ---
+
+export interface ReportNode {
+  id: string;
+  title: string;
+  description: string;
+  source_journal_ids: UUID[];
+  type: 'concept' | 'action' | 'emotion' | 'milestone';
+  position?: { x: number; y: number }; // Optional for layout persistence
+}
+
+export interface ReportEdge {
+  from: string;
+  to: string;
+  label?: string;
+}
+
+export interface InsightReport {
+  id: UUID;
+  user_id: UUID;
+  title: string;
+  summary: string;
+  created_at: ISODateString;
+  nodes: ReportNode[];
+  edges: ReportEdge[];
+  source_entry_ids: UUID[]; // The set of entries that triggered this report
+}

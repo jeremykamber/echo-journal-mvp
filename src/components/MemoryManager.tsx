@@ -76,7 +76,7 @@ export const MemoryManager: React.FC = () => {
                                         <DialogTrigger asChild>
                                             <Button size="sm" variant="ghost" onClick={() => setPendingDeleteId(r.id)}>Delete</Button>
                                         </DialogTrigger>
-                                        <DialogContent>
+                                        <DialogContent aria-describedby={undefined}>
                                             <DialogHeader>
                                                 <DialogTitle>Delete memory?</DialogTitle>
                                             </DialogHeader>

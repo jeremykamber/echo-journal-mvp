@@ -88,7 +88,7 @@ const FeedbackNudge: React.FC = () => {
 
   return (
     <Dialog open={isNudgeOpen} onOpenChange={setIsNudgeOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>How was today's insight?</DialogTitle>
         </DialogHeader>

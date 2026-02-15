@@ -1,6 +1,6 @@
 import { supabase } from '@/clients/supabaseClient';
 import { IEventRepository } from '../domain/interfaces';
-import { ScheduledReflectionEvent, UUID } from '../domain/types';
+import { ScheduledReflectionEvent, UUID, InsightReport } from '../domain/types';
 
 export class SupabaseEventRepository implements IEventRepository {
   private readonly TABLE = 'scheduled_reflection_events';
@@ -48,5 +48,27 @@ export class SupabaseEventRepository implements IEventRepository {
       .eq('id', id);
 
     if (error) throw new Error(`Failed to update event status: ${error.message}`);
+  }
+
+  async saveReport(report: Omit<InsightReport, 'id' | 'created_at'>): Promise<InsightReport> {
+    const { data, error } = await supabase
+      .from('insight_reports')
+      .insert([report])
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to save report: ${error.message}`);
+    return data as InsightReport;
+  }
+
+  async fetchReportsByUser(userId: UUID): Promise<InsightReport[]> {
+    const { data, error } = await supabase
+      .from('insight_reports')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(`Failed to fetch reports: ${error.message}`);
+    return data as InsightReport[];
   }
 }

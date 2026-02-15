@@ -29,6 +29,7 @@ import Entries from './pages/Entries';
 import Stash from './pages/Stash';
 import PrivacyInfo from './pages/PrivacyInfo';
 import Clusters from './pages/Clusters';
+import Reports from './pages/Reports';
 import NotFound from './pages/NotFound';
 
 // Hook imports
@@ -107,6 +108,7 @@ function AppContent() {
           <Route path="/privacy-info" element={<PrivacyInfo />} />
           <Route path="/stash" element={<Stash />} />
           <Route path="/clusters" element={<Clusters />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </SidebarInset>

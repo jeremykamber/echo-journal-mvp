@@ -1,5 +1,5 @@
 import { useOnboardingStore } from '@/store/onboardingStore';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import OnboardingWelcome from './steps/OnboardingWelcome';
@@ -42,6 +42,7 @@ export const OnboardingModal = () => {
     return (
         <Dialog open={isActive} onOpenChange={skipOnboarding}>
             <DialogContent
+                aria-describedby="onboarding-description"
                 className={
                     cn(
                         "sm:max-w-[500px] flex flex-col border-primary/20 p-0 overflow-hidden",
@@ -57,6 +58,10 @@ export const OnboardingModal = () => {
                     overflow: 'hidden',
                 }}
             >
+                <DialogTitle className="sr-only">Welcome to Echo</DialogTitle>
+                <DialogDescription id="onboarding-description" className="sr-only">
+                    Let's get you started with Echo's journal and AI features.
+                </DialogDescription>
                 <div className="flex-1 min-h-0 flex flex-col items-center overflow-y-auto p-6 w-full">
                     {renderStep()}
                 </div>
