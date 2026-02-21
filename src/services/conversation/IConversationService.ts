@@ -1,4 +1,6 @@
-import type { Conversation, Message } from "@/store/conversationStore";
+import type { Conversation } from "@/store/conversationStore";
+// Import Message from journalStore as it has all the properties the DB supports
+import type { Message } from "@/store/journalStore";
 import type { SupabaseError } from "@/services/supabaseService";
 
 /**
