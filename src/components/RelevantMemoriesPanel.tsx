@@ -16,17 +16,20 @@ export const RelevantMemoriesPanel: React.FC<Props> = ({ contextText, userId, se
     const { fetchRelevant } = useMemoryAssistant({ service });
     const [results, setResults] = useState<Array<any>>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         let mounted = true;
         setIsLoading(true);
+        setError(null);
         fetchRelevant(contextText, userId, limit)
             .then((r) => {
                 if (!mounted) return;
                 setResults(r.results || []);
             })
-            .catch(() => {
+            .catch((err) => {
                 if (!mounted) return;
+                setError('Fetch failed: ' + (err?.message || 'Unknown error'));
                 setResults([]);
             })
             .finally(() => {
@@ -45,9 +48,10 @@ export const RelevantMemoriesPanel: React.FC<Props> = ({ contextText, userId, se
                 <CardTitle>Echo's relevant memories</CardTitle>
             </CardHeader>
             <CardContent>
+                {error && <div className="text-sm text-destructive mb-2">{error}</div>}
                 {isLoading ? (
                     <div>Loading…</div>
-                ) : results.length === 0 ? (
+                ) : results.length === 0 && !error ? (
                     <div className="text-sm text-muted-foreground">No relevant memories found.</div>
                 ) : (
                     <ul className="space-y-2">

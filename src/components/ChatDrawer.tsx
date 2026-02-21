@@ -16,7 +16,7 @@ interface ChatDrawerProps {
     threadId: string,
     inputValue?: string,
     setInputValue: (value: string) => void,
-    onSend: () => void,
+    onSend: (isDeepReflection: boolean) => void,
     inputPlaceholder?: string
 }
 

@@ -7,6 +7,9 @@ import { Toaster } from 'sonner';
 // Store imports
 import { useSettingsStore } from '@/store/settingsStore';
 import useSuccessDialogStore from './store/successDialogStore';
+import useJournalStore from '@/store/journalStore';
+import useConversationStore from '@/store/conversationStore';
+import { useStashStore } from '@/store/stashStore';
 
 // Component imports
 import { SidebarInset, SidebarProvider } from './components/ui/sidebar';
@@ -25,6 +28,8 @@ import SettingsScreen from './pages/Settings';
 import Entries from './pages/Entries';
 import Stash from './pages/Stash';
 import PrivacyInfo from './pages/PrivacyInfo';
+import Clusters from './pages/Clusters';
+import Reports from './pages/Reports';
 import NotFound from './pages/NotFound';
 
 // Hook imports
@@ -67,6 +72,21 @@ function ThemeEffect() {
   return null;
 }
 
+function DataSyncEffect() {
+  const syncJournal = useJournalStore(s => s.syncFromStorage);
+  const syncConversations = useConversationStore(s => s.syncFromStorage);
+  const syncStash = useStashStore(s => s.syncFromStorage);
+
+  useEffect(() => {
+    // Perform initial sync
+    void syncJournal();
+    void syncConversations();
+    void syncStash();
+  }, [syncJournal, syncConversations, syncStash]);
+
+  return null;
+}
+
 // Main app content component
 function AppContent() {
   useOnboardingTrigger(); // Hook that auto-triggers onboarding for new users
@@ -75,6 +95,7 @@ function AppContent() {
   return (
     <SidebarProvider>
       <ThemeEffect />
+      <DataSyncEffect />
       <TrackPageViews />
       <AppSidebar />
       <SidebarInset>
@@ -86,6 +107,8 @@ function AppContent() {
           <Route path="/entries" element={<Entries />} />
           <Route path="/privacy-info" element={<PrivacyInfo />} />
           <Route path="/stash" element={<Stash />} />
+          <Route path="/clusters" element={<Clusters />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </SidebarInset>

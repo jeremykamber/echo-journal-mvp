@@ -33,7 +33,7 @@ export function makeNudgeService({ memoryService = makeMemoryService() } = {}) {
             }
         },
 
-        async generateNudgesForReflection(reflectionText: string, entryId?: string, userId?: string): Promise<Nudge[]> {
+        async generateNudgesForReflection(reflectionText: string, _entryId?: string, userId?: string): Promise<Nudge[]> {
             try {
                 const ctx = await memoryService.getPromptContext(reflectionText, { userId, n: 3, minMemories: 1 });
                 if (!ctx.contextBundle) return [];

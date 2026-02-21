@@ -1,6 +1,13 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+// src/store/settingsStore.ts
 
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { robustStorage } from '@/lib/robustStorage';
+
+/**
+ * Application settings interface.
+ * `vectorStorePath` is optional for web builds; it is used by the persistent vector store on the server.
+ */
 export interface AppSettings {
     reflectionSimilarityThreshold: number;
     reflectionMinLength: number;
@@ -12,6 +19,24 @@ export interface AppSettings {
     enableWhisper: boolean;
     enableSharing: boolean;
     completedTours: string[];
+    /**
+     * AI provider mode: 'cloud' uses OpenAI API, 'local' uses WebLLM.
+     */
+    aiProvider: 'cloud' | 'local';
+    /**
+     * Path for persisting vector store data (used in Node environments).
+     * Optional for web builds.
+     */
+    vectorStorePath?: string;
+    /**
+     * Selected local model ID when aiProvider is 'local'.
+     */
+    localModelId: string;
+    /**
+     * Enable End-to-End Encryption for cloud-synced data.
+     */
+    enableEncryption: boolean;
+    storageProvider: 'local' | 'supabase';
 }
 
 interface SettingsState extends AppSettings {
@@ -20,7 +45,7 @@ interface SettingsState extends AppSettings {
 }
 
 const defaultSettings: AppSettings = {
-    reflectionSimilarityThreshold: 0.90,
+    reflectionSimilarityThreshold: 0.9,
     reflectionMinLength: 30,
     theme: 'system',
     showReflectionLabels: true,
@@ -30,6 +55,14 @@ const defaultSettings: AppSettings = {
     enableWhisper: false,
     enableSharing: false,
     completedTours: [],
+    aiProvider: 'cloud',
+    vectorStorePath: './vector_store',
+    localModelId: '',
+    enableEncryption: false,
+    /**
+     * Storage provider: 'local' uses IndexedDB, 'supabase' uses Cloud.
+     */
+    storageProvider: 'supabase',
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -37,9 +70,10 @@ export const useSettingsStore = create<SettingsState>()(
         (set) => ({
             ...defaultSettings,
             setSetting: (key, value) => set({ [key]: value }),
-            markTourCompleted: (tourId) => set((state) => ({
-                completedTours: [...state.completedTours, tourId]
-            })),
+            markTourCompleted: (tourId) =>
+                set((state) => ({
+                    completedTours: [...state.completedTours, tourId],
+                })),
         }),
         {
             name: 'app-settings',
@@ -54,7 +88,13 @@ export const useSettingsStore = create<SettingsState>()(
                 enableWhisper: state.enableWhisper,
                 enableSharing: state.enableSharing,
                 completedTours: state.completedTours,
+                aiProvider: state.aiProvider,
+                vectorStorePath: state.vectorStorePath,
+                localModelId: state.localModelId,
+                enableEncryption: state.enableEncryption,
+                storageProvider: state.storageProvider,
             }),
+            storage: createJSONStorage(() => robustStorage),
         }
     )
 );

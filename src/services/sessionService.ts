@@ -1,32 +1,34 @@
+import { storageService } from './storageService';
+
 export type SessionService = {
-    ensureSessionId: () => string;
-    getSessionId: () => string | undefined;
-    getItem: (key: string) => string | null;
-    setItem: (key: string, value: string) => void;
-    removeItem: (key: string) => void;
+    ensureSessionId: () => Promise<string>;
+    getSessionId: () => Promise<string | undefined>;
+    getItem: (key: string) => Promise<string | null>;
+    setItem: (key: string, value: string) => Promise<void>;
+    removeItem: (key: string) => Promise<void>;
 };
 
 export function makeSessionService(): SessionService {
     return {
-        ensureSessionId() {
-            let id = localStorage.getItem('sessionId');
+        async ensureSessionId() {
+            let id = await storageService.getItem<string>('sessionId');
             if (!id) {
                 id = `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-                localStorage.setItem('sessionId', id);
+                await storageService.setItem('sessionId', id);
             }
             return id;
         },
-        getSessionId() {
-            return localStorage.getItem('sessionId') || undefined;
+        async getSessionId() {
+            return (await storageService.getItem<string>('sessionId')) || undefined;
         },
-        getItem(key: string) {
-            return localStorage.getItem(key);
+        async getItem(key: string) {
+            return await storageService.getItem<string>(key);
         },
-        setItem(key: string, value: string) {
-            localStorage.setItem(key, value);
+        async setItem(key: string, value: string) {
+            await storageService.setItem(key, value);
         },
-        removeItem(key: string) {
-            localStorage.removeItem(key);
+        async removeItem(key: string) {
+            await storageService.removeItem(key);
         },
     };
 }

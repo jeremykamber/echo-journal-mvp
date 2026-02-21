@@ -12,8 +12,8 @@ app.post('/api/whisper', async (req: express.Request, res: express.Response) => 
 
         const audioBuffer = Buffer.from(String(content_base64), 'base64');
 
-        const openaiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
-        if (!openaiKey) {
+        const openrouterKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
+        if (!openrouterKey) {
             console.warn('Transcription requested but OPENAI_API_KEY not configured');
             return res.status(501).json({ success: false, error: 'Transcription provider not configured on server' });
         }
@@ -30,10 +30,10 @@ app.post('/api/whisper', async (req: express.Request, res: express.Response) => 
             form.append('file', blob, filename || 'audio.webm');
             form.append('model', 'whisper-1');
 
-            const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            const r = await fetch('https://openrouter.ai/api/v1/audio/transcriptions', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${openaiKey}`,
+                    Authorization: `Bearer ${openrouterKey}`,
                 },
                 // Node runtimes with web api support accept form as body
                 body: form as any,
@@ -41,7 +41,7 @@ app.post('/api/whisper', async (req: express.Request, res: express.Response) => 
 
             if (!r.ok) {
                 const text = await r.text();
-                console.error('OpenAI transcription error', r.status, text);
+                console.error('OpenRouter transcription error', r.status, text);
                 return res.status(502).json({ success: false, error: `transcription provider error: ${r.status}` });
             }
 

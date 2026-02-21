@@ -1,10 +1,6 @@
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-import { MemoryVectorStore } from 'langchain/vectorstores/memory';
-// import { ChatOllama, OllamaEmbeddings } from '@langchain/ollama';
-import { makeChatClient, makeRealtimeChatClient, makeEmbedder } from '@/clients/openaiClient';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { RunnableSequence } from '@langchain/core/runnables';
-import { StringOutputParser } from '@langchain/core/output_parsers';
+import { addDocuments, similaritySearch } from '@/services/persistentVectorStore';
+// import { makeOpenRouterEmbedder } from '@/clients/openaiClient'; // removed unused import
 import { formatDocumentsAsString } from '@/lib/formatDocumentsAsString';
 import journalStore, { JournalEntry } from '@/store/journalStore';
 import conversationStore from '@/store/conversationStore';
@@ -13,6 +9,8 @@ import { IterableReadableStreamInterface } from '@langchain/core/utils/stream';
 import { trackCompletedReflection } from "@/services/analyticsService";
 import makeMemoryService from '@/features/memory/services/memoryService';
 import { getNudgeService } from '@/services/nudgeServiceRegistry';
+import { getGlobalLLMProvider } from '@/services/llmProviders/adapterService';
+import { ChatMessage } from '@/services/llmProviders/interface';
 
 // Define types for reflection responses
 export interface RealtimeReflectionResponse {
@@ -20,13 +18,78 @@ export interface RealtimeReflectionResponse {
   relatedEntries: JournalEntry[];
 }
 
-const llm = makeChatClient({ model: 'gpt-4.1-mini' });
-const realtimeLlm = makeRealtimeChatClient({ model: 'gpt-4.1-nano' });
-const embedder = makeEmbedder();
+// const embedder = makeOpenRouterEmbedder(); // Removed unused embedder
 
 const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1000, chunkOverlap: 200 });
+
+/**
+ * System prompt for Echo AI companion
+ */
+const ECHO_SYSTEM_PROMPT = `You are Echo, an AI journaling companion that provides thoughtful, context-aware responses.
+
+You are also the user's friend and advisor. Talk with them and respond to them conversationally, but still with depth and insight.
+
+GUIDELINES:
+1. Your reflection should be thought-provoking and sharp. Support them emotionally, but also ensure you give them the brutal honest truth because it's for their best interests, don't sugarcoat things.
+2. Focus on one of these aspects based on what's most relevant:
+   - Patterns or themes you notice across MULTIPLE journal entries and conversations.
+   - Contradictions or evolution in their thinking over time.
+   - Questions that might deepen their self-reflection.
+   - Gentle prompts for areas they could explore further in their writing.
+3. Be warm, empathetic and insightful - like a thoughtful friend. Your tone should not be super sophisticated, but simple and friendly, like a therapist.
+4. DO NOT summarize their current entry back to them.
+5. Avoid being overly positive/cheerleading or negative/critical.
+6. IMPORTANT: Always EXPLICITLY cite past journal entries OR conversation messages when referring to them.
+7. Citations should use the format: [cite:ID] where you put the entry id or message id after the colon.
+   If citing multiple items, have separate brackets for each, like this: [cite:entry-123] [cite:uuid-456].
+   FOLLOW THIS FORMAT EXACTLY.
+8. Use natural language to introduce citations, such as:
+   - "In a past entry [cite:entry-id], you mentioned..."
+   - "In our previous chat [cite:msg-id], we discussed..."
+   - "I notice a connection to when you wrote about... [cite:entry-id]"
+   - "This reminds me of your thoughts on... [cite:msg-id]"
+9. Make sure citations are inline and integrated naturally into your reflection.
+10. Try your best to connect the dots across MULTIPLE journal entries and conversations, not just one.
+11. Use the CONTEXT provided to connect current events to the past.
+12. Each document in the context has a [SOURCE: ...] and [CITATION_ID: ...]. Use the [CITATION_ID] for the citation.
+Provide ONLY the reflection text with no preamble or explanation. Ensure your output is beautiful and easy to read, written EXCLUSIVELY in markdown. Don't add the code block for markdown, just write your output in markdown. NO HTML IN YOUR OUTPUT!!!`;
+
+/**
+ * Prompt for the "Deep Reflection" synthesis step.
+ */
+const PATTERN_ANALYSIS_PROMPT = `You are an expert analyst of personal journals and conversations. Your goal is to identify deep patterns, contradictions, and growth trajectories.
+
+Review the provided user history (journal entries and chats) and the user's latest message.
+Analyze for:
+1. Recurring themes or emotional cycles (e.g. loops of anxiety followed by relief).
+2. Contradictions between what they say now vs. what they said in the past.
+3. Hidden connections between seemingly unrelated events.
+4. Suggestions for what they might be avoiding or not seeing.
+
+Provide a concise "Analyst Synthesis" that summarizes these insights. This synthesis will be used by another AI to generate a response.
+Focus on the "Why" and "How", not just the "What".
+Do not address the user directly. Write for the other AI.`;
+
+/**
+ * Realtime system prompt (shorter for faster responses)
+ */
+const REALTIME_SYSTEM_PROMPT = `You are Echo, an AI journaling companion that provides real-time reflections as users write in their journal. You help users understand their patterns and growth over time by connecting their current writing to their past entries.
+
+GUIDELINES:
+1. Your reflection should be concise (2-4 sentences) and thought-provoking. NO HTML IN YOUR OUTPUTS.
+2. Focus on patterns, growth, questions for self-reflection, or prompts for further exploration.
+3. Be warm, empathetic and insightful - like a thoughtful friend
+4. DO NOT summarize their current entry back to them
+5. Avoid being overly positive/cheerleading or negative/critical
+6. Always cite past journal entries or conversations using format: [cite:ID]
+7. Make sure citations are inline and integrated naturally.
+8. Try to connect dots across MULTIPLE sources (journals and chats).
+9. Use the [CITATION_ID] from the provided context.
+Provide ONLY the reflection text in markdown format, no preamble.`;
+
 /**
  * Streams a real-time reflection for a journal entry as tokens arrive.
+ * Uses configured LLM provider (local WebLLM or cloud OpenAI).
  * Yields each token as it arrives, and returns related entries as well.
  */
 export async function* streamRealtimeReflection(
@@ -39,64 +102,45 @@ export async function* streamRealtimeReflection(
     }
 
     // Prefer mem0 for context; fall back to summarized journal snippet when empty
-    const memoryService = makeMemoryService();
-    const { contextBundle, relatedEntries } = await memoryService.getPromptContext(content, { userId: undefined, n: 4 });
-    if (!contextBundle || relatedEntries.length === 0) {
-      // Nothing useful to reference
+    // Use persistent vector store for context; fallback to memory service if empty
+    let similarDocs = await similaritySearch(content, 4);
+    let contextBundle: string | undefined;
+    let relatedEntries: any[] = [];
+    if (similarDocs.length > 0) {
+      contextBundle = formatDocumentsAsString(similarDocs);
+      // Extract entry IDs from metadata for analytics (if present)
+      relatedEntries = similarDocs.map(d => ({ id: d.metadata?.entryId ?? 'unknown' } as any));
+    } else {
+      const memoryService = makeMemoryService();
+      const result = await memoryService.getPromptContext(content, { userId: undefined, n: 4 });
+      contextBundle = result.contextBundle;
+      relatedEntries = result.relatedEntries;
+      if (!contextBundle || relatedEntries.length === 0) {
+        return;
+      }
+    }
+
+    const provider = getGlobalLLMProvider();
+    if (!provider) {
+      yield {
+        token: '⚠️ AI provider not initialized. Please check your settings.',
+        done: true,
+        relatedEntries,
+      };
       return;
     }
 
-    const prompt = ChatPromptTemplate.fromTemplate(
-      `You are Echo, an AI journaling companion that provides real-time reflections as users write in their journal. You help users understand their patterns and growth over time by connecting their current writing to their past entries.\n\n
-      GUIDELINES:
-1. Your reflection should be concise (2-4 sentences) and thought-provoking. NO HTML IN YOUR OUTPUTS.
-2. Focus on one of these aspects based on what's most relevant:
-   - Patterns or themes you notice between the journal entry the user is currently writing (provided in the beginning of this prompt) and past/future entries
-   - Growth or change you observe compared to similar past situations
-   - Questions that might deepen their self-reflection
-   - Gentle prompts for areas they could explore further in their writing
+    const messages: ChatMessage[] = [
+      { role: 'system', content: REALTIME_SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: `The user is currently writing this journal entry (with id ${entryId}):\n\n${content}\n\nRelevant past journal entries:\n\n${contextBundle}`,
+      },
+    ];
 
-3. Be warm, empathetic and insightful - like a thoughtful friend
-4. DO NOT summarize their current entry back to them
-5. Avoid being overly positive/cheerleading or negative/critical
-6. IMPORTANT: Always EXPLICITLY cite past journal entries when referring to them
-7. Citations should use the format: [cite:] where you put the entry id (e.g., entry-1745859019093-uzc68ky) after the colon. Make sure there are NO hashtags or other symbols in the citation. FOLLOW THIS FORMAT EXACTLY. Keep the "entry-" prefix and the ID (all letters and numbers) together, without spaces or other characters. If citing multiple entries, have separate brackets for each entry, like this: [cite:entry-1745859019093-uzc68ky] [cite:entry-1745873568069-fb2e27v]. Do not use any other format or symbols.
-    FOLLOW THIS FORMAT EXACTLY.\n
-8. Use natural language to introduce citations, such as:
-   - "In a past entry [cite:entry-1745859019093-uzc68ky], you mentioned..."
-   - "I notice a connection to when you wrote about... [cite:entry-1745873568069-fb2e27v]"
-   - "This reminds me of your thoughts on... [cite:entry-1745859019093-uzc68ky] and [cite:entry-1745873568069-fb2e27v]"
-   - "You previously reflected on this topic in [cite:entry-1745859019093-uzc68ky]"
-9. Make sure citations are inline and integrated naturally into your reflection
-10. Try your best to connect the dots across MULTIPLE entries, not just one.
+    console.log('[AI Service] Realtime reflection messages:', messages);
 
-Provide ONLY the reflection text with no preamble or explanation. Ensure your output is beautiful and easy to read, and written in markdown. Don't add the code block for markdown, just write your output in markdown; I'll parse the output on my own and show it to the user as markdown.
-
-The user is currently writing this journal entry (with id ${entryId}):
-"""
-{currentContent}
-"""
-
-I have found some past journal entries that might be relevant. Use these to provide a short, thoughtful reflection:
-
-{context}
-
-`
-    );
-
-    const formattedDocs = contextBundle; // small, token-efficient bundle returned by mem0/fallback
-    const chain = RunnableSequence.from([
-      prompt,
-      realtimeLlm,
-      new StringOutputParser(),
-    ]);
-
-    const stream = await chain.stream({
-      currentContent: content,
-      context: formattedDocs
-    });
-
-    for await (const token of stream) {
+    for await (const token of provider.streamChatCompletion({ messages })) {
       yield { token, done: false, relatedEntries };
     }
     yield { token: '', done: true, relatedEntries };
@@ -113,8 +157,9 @@ I have found some past journal entries that might be relevant. Use these to prov
  * @param question The user's question or message
  * @param entryId Optional journal entry ID if this is from a specific entry
  * @param conversationId The conversation ID for retrieving chat history
+ * @param isDeepReflection Whether to perform a multi-step deep analysis
  */
-export async function* streamReflectionTokens(question: string, conversationId: string, entryId: string = '') {
+export async function* streamReflectionTokens(question: string, conversationId: string, entryId: string = '', isDeepReflection: boolean = false) {
   // Get current journal entry content if entryId is provided
   let currentEntryContent = '';
   if (entryId) {
@@ -156,64 +201,83 @@ export async function* streamReflectionTokens(question: string, conversationId: 
     pageContent: e.content,
     metadata: { entryId: e.id }
   }));
-  const splits = await splitter.splitDocuments(docs);
-  const vectorStore = new MemoryVectorStore(embedder);
-  const validSplits = splits.filter(s => typeof s.pageContent === 'string' && s.pageContent.trim().length > 0);
-  await vectorStore.addDocuments(validSplits);
+  let formattedDocs: string;
+  let validSplits: Document[] = []; // Declare validSplits here
 
-  // Build the prompt
-  const prompt = ChatPromptTemplate.fromTemplate(
-    `You are Echo, an AI journaling companion that provides thoughtful, context - aware responses.\n\n
-    You are also the user's friend, and advisor. Talk with them and respond to them conversationally, but still with depth and insight.\n\n
-      Here is the user's question/prompt: \n{question}\n
-      No matter what––above all––always respond to the user's query. \n\n
-    Provide ONLY the reflection text with no preamble or explanation. Ensure your output is beautiful and easy to read, written EXCLUSIVELY in markdown (with choice use of headings, subheadings, etc.). Don't add the code block for markdown, just write your output in markdown; I'll parse the output on my own and show it to the user as markdown. NO HTML IN YOUR OUTPUT!!!
-    If you cite a past entry, use the format [cite:] as described in the guidelines. Feel free directly quote entries as well if it drives home a point of yours.
-     \n\n
-      WRITING GUIDELINES: \n
-      1. Your reflection should be thought - provoking, and sharp. Support them emotionally, but also ensure you give them the brutal honest truth because it's for their best interests, don't sugarcoat things.\n
-      2. Focus on one of these aspects based on what's most relevant:\n
-    - Patterns or themes you notice between the journal entry the user is currently writing (provided at the bottom of this prompt) and past / future entries\n
-    - Growth or change you observe compared to similar past situations\n
-    - Questions that might deepen their self - reflection\n
-    - Gentle prompts for areas they could explore further in their writing\n\n
-    3. Be warm, empathetic and insightful - like a thoughtful friend. Your tone should not be super crazy sophisticated, but simple, and friendly, like a therapist.\n
-    4. DO NOT summarize their current entry back to them\n
-    5. Avoid being overly positive / cheerleading or negative / critical\n
-    6. IMPORTANT: Always EXPLICITLY cite past journal entries when referring to them\n
-    7. Citations should use the format: [cite:] where you put the entry id in {{ metadata.entryId }} after the colon. Make sure there are NO hashtags or other symbols in the citation. \n
-    If citing multiple entries, have separate brackets for each entry, like this: [cite:entry-1745859019093-uzc68ky] [cite:entry-1745873568069-fb2e27v].\n
-    FOLLOW THIS FORMAT EXACTLY.\n
-    
-  8. Use natural language to introduce citations, such as: \n
-    - "In a past entry [cite:entry-8234098230943-ugasyf], you mentioned..."\n
-      - "I notice a connection to when you wrote about... [cite:entry-823048324-haudfsa]"\n
-        - "This reminds me of your thoughts on... [cite:entry-101283108-saosdna]"\n
-  9. Make sure citations are inline and integrated naturally into your reflection\n
-  10. Try your best to connect the dots across MULTIPLE entries, not just one.\n\n
-      The user is currently writing this journal entry (with id ${entryId}): \n{currentEntryContent}\n\n
-      Recent chat history: \n{chatHistory}\n\n
-      Here are some relevant past journal entries: \n{context}\n\n
-      Respond to the user's message in a way that is empathetic, insightful, and references past entries where appropriate.\n
-      \n\n
-`
-  );
+  // Try to retrieve relevant docs from persistent Chroma store
+  let similarDocs = await similaritySearch(question, 4);
+  if (similarDocs.length > 0) {
+    formattedDocs = formatDocumentsAsString(similarDocs);
+  } else {
+    // Fallback: split all entries and add to vector store for future queries
+    const splits = await splitter.splitDocuments(docs);
+    validSplits = splits.filter(s => typeof s.pageContent === 'string' && s.pageContent.trim().length > 0);
+    await addDocuments(validSplits); // This uses the global addDocuments
+    formattedDocs = formatDocumentsAsString(validSplits);
+  }
+
   // Use mem0-first context bundle for prompt; fall back to local vectorized context when mem0 empty
   const memoryService = makeMemoryService();
   const { contextBundle } = await memoryService.getPromptContext(question, { userId: undefined, n: 4 });
-  const formattedDocs = contextBundle || formatDocumentsAsString(validSplits);
-  const chain = RunnableSequence.from([
-    prompt,
-    llm,
-    new StringOutputParser(),
-  ]);
-  const stream = await chain.stream({
-    question: question,
-    currentEntryContent: currentEntryContent,
-    chatHistory,
-    context: formattedDocs
-  });
-  for await (const chunk of stream) {
+  formattedDocs = contextBundle || formattedDocs; // Use the already determined formattedDocs as fallback
+
+  const provider = getGlobalLLMProvider();
+  if (!provider) {
+    yield "⚠️ AI provider not initialized. Please check your settings.";
+    return;
+  }
+
+  // Build the user message with all context
+  const contextBlock = `The user is currently writing this journal entry${entryId ? ` (with id ${entryId})` : ''}:
+${currentEntryContent || '(No current entry content)'}
+
+Recent chat history:
+${chatHistory || '(No previous messages)'}
+
+Here are some relevant past journal entries:
+${formattedDocs}`;
+
+  let finalSystemPrompt = ECHO_SYSTEM_PROMPT;
+  let finalUserMessage = `Here is the user's question/prompt: ${question}\n\n${contextBlock}\n\nRespond to the user's message in a way that is empathetic, insightful, and references past entries where appropriate.`;
+
+  // Deep Reflection Step: Run analysis first if enabled
+  if (isDeepReflection) {
+    console.log('[AI Service] Starting Deep Reflection analysis...');
+    yield "*Thinking deeply...* 🧠\n\n";
+
+    const analysisMessages: ChatMessage[] = [
+      { role: 'system', content: PATTERN_ANALYSIS_PROMPT },
+      { role: 'user', content: `Analyze the following user history and current question:\n\nUser Question: ${question}\n\nCONTEXT:\n${contextBlock}` }
+    ];
+
+    let analysisText = "";
+    try {
+      // Collect the full analysis response (non-streaming for internal step)
+      // Note: provider.chatCompletion is not exposed in the interface, we can reuse stream but just buffer it.
+      // Or if we have a non-streaming method, use that. The adapter usually exposes stream.
+      // We'll just consume the stream.
+      for await (const chunk of provider.streamChatCompletion({ messages: analysisMessages })) {
+        analysisText += chunk;
+      }
+      console.log('[AI Service] Deep Reflection Analysis:', analysisText);
+
+      // Inject the analysis into the final prompt
+      finalUserMessage = `Here is the user's question/prompt: ${question}\n\n${contextBlock}\n\nI have performed a deep analysis of the user's patterns. Use this insight to guide your response:\n${analysisText}\n\nRespond to the user's message in a way that is empathetic, insightful, and references past entries where appropriate. INTEGRATE the pattern analysis provided above.`;
+
+    } catch (err) {
+      console.error("Deep reflection analysis failed:", err);
+      yield "\n*(Deep analysis failed, responding normally...)*\n\n";
+    }
+  }
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: finalSystemPrompt },
+    { role: 'user', content: finalUserMessage },
+  ];
+
+  console.log('[AI Service] Reflection messages:', messages);
+
+  for await (const chunk of provider.streamChatCompletion({ messages })) {
     yield chunk;
   }
 }
@@ -230,6 +294,7 @@ export async function streamReflectionToStore({
   targetId: string;
   entryId?: string;
   aiMessageId?: string;
+  isDeepReflection?: boolean;
 }): Promise<void> {
   if (targetType === 'conversation') {
     const addAIMessage = conversationStore.getState().addMessage;
@@ -240,7 +305,9 @@ export async function streamReflectionToStore({
     const THROTTLE_MS = 50;
     console.log(`Starting streaming for conversation ${targetId}`);
     console.log(`Initial AI Message ID: ${aiMsgId} `);
-    for await (const token of streamReflectionTokens(question, targetId, entryId)) {
+    const { isDeepReflection = false } = arguments[0]; // Access destructured arg if needed or passed down
+
+    for await (const token of streamReflectionTokens(question, targetId, entryId, isDeepReflection)) {
       accumulatedText += token;
       if (Date.now() - lastUpdate > THROTTLE_MS) {
         updateAIMessage(aiMsgId, accumulatedText);
@@ -282,7 +349,9 @@ export async function streamReflectionToStore({
     const THROTTLE_MS = 50;
     console.log(`Starting streaming for journal entry ${entryId} and target ${targetId} `);
     console.log(`Initial AI Message ID: ${aiMsgId} `);
-    for await (const token of streamReflectionTokens(question, targetId, entryId)) {
+    const { isDeepReflection = false } = arguments[0];
+
+    for await (const token of streamReflectionTokens(question, targetId, entryId, isDeepReflection)) {
       accumulatedText += token;
       if (Date.now() - lastUpdate > THROTTLE_MS) {
         updateAIMessage(aiMsgId, accumulatedText);

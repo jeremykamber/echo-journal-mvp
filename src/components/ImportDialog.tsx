@@ -48,7 +48,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
-            <DialogContent className={cn("bg-card border border-border rounded-lg shadow-xl w-full max-w-xl max-h-[80vh] overflow-auto p-0", className)}>
+            <DialogContent aria-describedby={undefined} className={cn("bg-card border border-border rounded-lg shadow-xl w-full max-w-xl max-h-[80vh] overflow-auto p-0", className)}>
                 <DialogHeader className="flex items-center justify-between border-b border-border p-4">
                     <DialogTitle asChild>
                         <h2 className="text-xl font-medium">Import Journal Entries</h2>
