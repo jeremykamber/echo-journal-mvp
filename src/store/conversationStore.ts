@@ -183,8 +183,6 @@ const useConversationStore = create<ConversationState>()(
                             text: newMessage.text,
                             timestamp: newMessage.timestamp,
                             threadId: conversationId,
-                            timestamp: newMessage.timestamp,
-                            threadId: conversationId,
                             entryId: undefined,
                         });
 
@@ -223,7 +221,6 @@ const useConversationStore = create<ConversationState>()(
 
                 set((state) => ({
                     conversations: [...state.conversations, newConversation],
-                    conversations: [...state.conversations, newConversation],
                     activeConversationId: id,
                 }));
 
@@ -246,7 +243,6 @@ const useConversationStore = create<ConversationState>()(
             deleteConversation: (id) => {
                 set((state) => ({
                     conversations: state.conversations.filter((c) => c.id !== id),
-                    messages: state.messages.filter((m) => m.conversationId !== id),
                     messages: state.messages.filter((m) => m.conversationId !== id),
                     activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
                 }));
