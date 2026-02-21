@@ -12,15 +12,7 @@ export const aiMemoryService = {
   },
 
   async getAllMemories() {
-    const filters = {
-      "AND": [
-        {
-          "user_id": "alex"
-        }
-      ]
-    };
-
-    return memoryProvider.getAll({ version: "v2", filters, page: 1, page_size: 50 })
+    return memoryProvider.getAll({ userId: 'alex' })
       .then(memories => console.log(memories))
       .catch(error => console.error(error));
   }

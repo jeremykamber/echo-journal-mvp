@@ -7,6 +7,9 @@ import { Toaster } from 'sonner';
 // Store imports
 import { useSettingsStore } from '@/store/settingsStore';
 import useSuccessDialogStore from './store/successDialogStore';
+import useJournalStore from '@/store/journalStore';
+import useConversationStore from '@/store/conversationStore';
+import { useStashStore } from '@/store/stashStore';
 
 // Component imports
 import { SidebarInset, SidebarProvider } from './components/ui/sidebar';
@@ -17,6 +20,7 @@ import FeedbackNudge from '@/components/FeedbackNudge';
 
 // Context imports
 import { AIProvider } from './context/AIContext';
+import { AuthProvider } from './context/AuthContext';
 
 // Page imports
 import Entry from './pages/Entry';
@@ -25,7 +29,13 @@ import SettingsScreen from './pages/Settings';
 import Entries from './pages/Entries';
 import Stash from './pages/Stash';
 import PrivacyInfo from './pages/PrivacyInfo';
+import Clusters from './pages/Clusters';
+import Reports from './pages/Reports';
 import NotFound from './pages/NotFound';
+import Login from './pages/Login';
+
+// Component imports
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Hook imports
 import { useOnboardingTrigger } from './hooks/useOnboardingTrigger';
@@ -67,42 +77,62 @@ function ThemeEffect() {
   return null;
 }
 
+function DataSyncEffect() {
+  const syncJournal = useJournalStore(s => s.syncFromStorage);
+  const syncConversations = useConversationStore(s => s.syncFromStorage);
+  const syncStash = useStashStore(s => s.syncFromStorage);
+
+  useEffect(() => {
+    // Perform initial sync
+    void syncJournal();
+    void syncConversations();
+    void syncStash();
+  }, [syncJournal, syncConversations, syncStash]);
+
+  return null;
+}
+
 // Main app content component
 function AppContent() {
   useOnboardingTrigger(); // Hook that auto-triggers onboarding for new users
   const { isOpen, title, message, hideSuccessDialog } = useSuccessDialogStore();
 
   return (
-    <SidebarProvider>
-      <ThemeEffect />
-      <TrackPageViews />
-      <AppSidebar />
-      <SidebarInset>
-        <Routes>
-          <Route path="/" element={<AIChatScreen />} />
-          <Route path="/entry/:id" element={<Entry />} />
-          <Route path="/conversation/:id" element={<AIChatScreen />} />
-          <Route path="/settings" element={<SettingsScreen />} />
-          <Route path="/entries" element={<Entries />} />
-          <Route path="/privacy-info" element={<PrivacyInfo />} />
-          <Route path="/stash" element={<Stash />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </SidebarInset>
+    <ProtectedRoute>
+      <SidebarProvider>
+        <ThemeEffect />
+        <DataSyncEffect />
+        <TrackPageViews />
+        <AppSidebar />
+        <SidebarInset>
+          <Routes>
+            <Route path="/" element={<AIChatScreen />} />
+            <Route path="/entry/:id" element={<Entry />} />
+            <Route path="/conversation/:id" element={<AIChatScreen />} />
+            <Route path="/settings" element={<SettingsScreen />} />
+            <Route path="/entries" element={<Entries />} />
+            <Route path="/privacy-info" element={<PrivacyInfo />} />
+            <Route path="/stash" element={<Stash />} />
+            <Route path="/clusters" element={<Clusters />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </SidebarInset>
 
-      {/* Success Dialog */}
-      <SuccessDialog
-        isOpen={isOpen}
-        onClose={hideSuccessDialog}
-        title={title}
-        message={message}
-      />
+        {/* Success Dialog */}
+        <SuccessDialog
+          isOpen={isOpen}
+          onClose={hideSuccessDialog}
+          title={title}
+          message={message}
+        />
 
-      {/* Onboarding Modal */}
-      <OnboardingModal />
-      <Toaster />
-      <FeedbackNudge />
-    </SidebarProvider>
+        {/* Onboarding Modal */}
+        <OnboardingModal />
+        <Toaster />
+        <FeedbackNudge />
+      </SidebarProvider>
+    </ProtectedRoute>
   );
 }
 
@@ -110,9 +140,14 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AIProvider>
-        <AppContent />
-      </AIProvider>
+      <AuthProvider>
+        <AIProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/*" element={<AppContent />} />
+          </Routes>
+        </AIProvider>
+      </AuthProvider>
     </Router>
   );
 }

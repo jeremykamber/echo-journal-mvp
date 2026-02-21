@@ -1,12 +1,13 @@
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Send, ChevronDown } from 'lucide-react';
+import { Send, ChevronDown, Sparkles } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ChatInputProps {
     value: string;
     onChange: (value: string) => void;
-    onSend: () => void;
+    onSend: (isDeepReflection: boolean) => void;
     disabled?: boolean;
     placeholder?: string;
     onFocus?: () => void;
@@ -27,6 +28,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     onMinimize
 }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [isDeepReflection, setIsDeepReflection] = React.useState(false);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -45,9 +47,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     };
 
     const handleSend = () => {
-        onSend();
+        onSend(isDeepReflection);
         onChange(''); // Clear the input
         resetTextareaHeight(); // Reset the height of the textarea
+        setIsDeepReflection(false); // Reset toggle after sending
     };
 
     const resetTextareaHeight = () => {
@@ -94,10 +97,34 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 onBlur={onBlur}
                 rows={1} // Start with a single row
             />
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setIsDeepReflection(!isDeepReflection)}
+                            className={cn(
+                                "h-8 w-8 rounded-full transition-all duration-300",
+                                isDeepReflection
+                                    ? "text-amber-500 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400"
+                                    : "text-muted-foreground hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/10"
+                            )}
+                        >
+                            <Sparkles size={18} className={cn(isDeepReflection && "fill-current")} />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Deep Reflection {isDeepReflection ? '(On)' : '(Off)'}</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+
             <Button
                 onClick={handleSend}
                 disabled={disabled || !value.trim()}
                 className="h-10 aspect-square rounded-full p-0 bg-primary text-white hover:bg-primary/80 transition-colors"
+                title="Send message"
             >
                 <Send size={20} />
             </Button>

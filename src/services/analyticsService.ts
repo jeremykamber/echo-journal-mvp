@@ -105,8 +105,8 @@ export const trackReflectionReaction = (
  * Track when a user submits their email (e.g., newsletter signup)
  * @param source - Where the email was submitted from (e.g., 'Mailing List', 'Onboarding')
  */
-export const trackEmailSubmitted = () => {
-    trackEvent('Engagement', 'EmailSubmitted');
+export const trackEmailSubmitted = (source?: string) => {
+    trackEvent('Engagement', 'EmailSubmitted', source ? `Source: ${source}` : undefined);
 };
 
 /**

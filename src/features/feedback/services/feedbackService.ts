@@ -25,7 +25,7 @@ export function makeFeedbackService({
 
             // Enrich payload with a session id if available
             try {
-                const session_id = sessionService.ensureSessionId();
+                const session_id = await sessionService.ensureSessionId();
 
                 const payload: AppFeedbackPayload = {
                     emoji_rating: emojiRating,

@@ -5,6 +5,8 @@ import remarkGfm from 'remark-gfm';
 import remarkCitation from '@/lib/remarkCitation';
 import EyebrowCitation from '@/components/EyebrowCitation';
 import useJournalStore from '@/store/journalStore';
+import useConversationStore from '@/store/conversationStore';
+import MessageCitation from '@/components/MessageCitation';
 
 /**
  * MarkdownWithCitations
@@ -23,11 +25,37 @@ const MarkdownWithCitations: FC<PropsWithChildren<{}>> = ({ children }) => {
                 p: ({ ...props }) => <p className="text-sm" {...props} />,
                 // @ts-ignore: Custom node type for citation
                 citation: ({ node }: any) => {
-                    // HAST nodes: custom attributes are in properties, and all keys are lowercase
-                    const entryId = node.properties?.entryid;
-                    const entry = entries.find(e => e.id === entryId);
-                    if (!entry) return <span style={{ color: 'red' }}>[Unknown citation]</span>;
-                    return <EyebrowCitation entry={entry} />;
+                    const id = node.properties?.entryid;
+
+                    // 1. Try to find in Journal Entries
+                    const entry = entries.find(e => e.id === id);
+                    if (entry) return <EyebrowCitation entry={entry} />;
+
+                    // 2. Try to find in Journal Messages
+                    const journalMessages = useJournalStore.getState().messages;
+                    const jMsg = journalMessages.find(m => m.messageId === id);
+                    if (jMsg) {
+                        return <MessageCitation
+                            messageId={id}
+                            text={jMsg.text}
+                            sender={jMsg.sender}
+                            link={jMsg.entryId ? `/entry/${jMsg.entryId}` : '/'}
+                        />;
+                    }
+
+                    // 3. Try to find in Global Conversation Messages
+                    const convMessages = useConversationStore.getState().messages;
+                    const cMsg = convMessages.find(m => m.messageId === id);
+                    if (cMsg) {
+                        return <MessageCitation
+                            messageId={id}
+                            text={cMsg.text}
+                            sender={cMsg.sender}
+                            link={`/conversation/${cMsg.conversationId}`}
+                        />;
+                    }
+
+                    return <span className="text-muted-foreground italic text-xs">[cite:{id}]</span>;
                 },
             } as any}
         >

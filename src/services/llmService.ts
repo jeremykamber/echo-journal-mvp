@@ -1,14 +1,14 @@
 // filepath: src/services/llmService.ts
-// Wraps LLM interactions (embeddings & chat) with easy swap between Ollama and OpenAI
+// Wraps LLM interactions (embeddings & chat) with easy swap between Ollama and OpenRouter
 
 // Chat models
-import { makeChatClient, makeEmbedder } from '@/clients/openaiClient';
-export const chatClient = makeChatClient({ model: 'gpt-5-nano' });
+import { makeOpenRouterChatClient, makeOpenRouterEmbedder } from '@/clients/openaiClient';
+export const chatClient = makeOpenRouterChatClient({ model: 'xiaomi/mimo-v2-flash:free' });
 /**
- * Get cosine similarity between two texts using Ollama embeddings via LangChain
+ * Get cosine similarity between two texts using OpenRouter embeddings via LangChain
  */
 export async function getEmbeddingSimilarity(textA: string, textB: string): Promise<number> {
-    const embedder = makeEmbedder({ model: 'text-embedding-ada-002' });
+    const embedder = makeOpenRouterEmbedder({ model: 'text-embedding-3-small' });
     const [vecA, vecB] = await embedder.embedDocuments([textA, textB]);
 
     // Compute cosine similarity

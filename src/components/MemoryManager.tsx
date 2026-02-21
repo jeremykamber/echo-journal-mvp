@@ -12,14 +12,16 @@ export const MemoryManager: React.FC = () => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const doSearch = async () => {
         setIsLoading(true);
+        setError(null);
         try {
             const res = await memoryService.searchMemory(query || '');
             setResults(res.results || []);
-        } catch (err) {
-            console.warn('search failed', err);
+        } catch (err: any) {
+            setError('Search failed: ' + (err?.message || 'Unknown error'));
             setResults([]);
         } finally {
             setIsLoading(false);
@@ -34,15 +36,16 @@ export const MemoryManager: React.FC = () => {
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
     const handleConfirmDelete = async () => {
         if (!pendingDeleteId) return;
+        setError(null);
         try {
             if (typeof memoryService.deleteMemory === 'function') {
                 await (memoryService.deleteMemory as (id: string) => Promise<{ success: boolean }>)(pendingDeleteId);
             } else {
-                console.warn('memoryService.deleteMemory is not implemented. Delete skipped.');
+                setError('Delete not implemented.');
             }
             setResults((r) => r.filter((it) => it.id !== pendingDeleteId));
-        } catch (err) {
-            console.warn('delete failed', err);
+        } catch (err: any) {
+            setError('Delete failed: ' + (err?.message || 'Unknown error'));
         } finally {
             setPendingDeleteId(null);
         }
@@ -60,8 +63,9 @@ export const MemoryManager: React.FC = () => {
                     <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search memories..." />
                     <Button onClick={doSearch} size="sm">Search</Button>
                 </div>
+                {error && <div className="text-sm text-destructive mb-2">{error}</div>}
                 {isLoading && <div>Loading…</div>}
-                {!isLoading && results.length === 0 && <div className="text-sm text-muted-foreground">No memories found</div>}
+                {!isLoading && results.length === 0 && !error && <div className="text-sm text-muted-foreground">No memories found</div>}
                 <ScrollArea className="h-64">
                     <ul className="space-y-2 p-2">
                         {results.map((r) => (
@@ -72,7 +76,7 @@ export const MemoryManager: React.FC = () => {
                                         <DialogTrigger asChild>
                                             <Button size="sm" variant="ghost" onClick={() => setPendingDeleteId(r.id)}>Delete</Button>
                                         </DialogTrigger>
-                                        <DialogContent>
+                                        <DialogContent aria-describedby={undefined}>
                                             <DialogHeader>
                                                 <DialogTitle>Delete memory?</DialogTitle>
                                             </DialogHeader>
@@ -95,26 +99,34 @@ export const MemoryManager: React.FC = () => {
                 <div className="text-xs text-muted-foreground">Manage user memories stored by Echo</div>
                 <div className="flex gap-2">
                     <Button size="sm" onClick={async () => {
-                        const res = await memoryService.searchMemory('', { limit: 1000 });
-                        const data = res.results || [];
-                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'echo-memories.json';
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        URL.revokeObjectURL(url);
+                        try {
+                            const res = await memoryService.searchMemory('', { limit: 1000 });
+                            const data = res.results || [];
+                            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'echo-memories.json';
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(url);
+                        } catch (err: any) {
+                            setError('Export failed: ' + (err?.message || 'Unknown error'));
+                        }
                     }}>Export</Button>
                     {settings.enableSharing && (
                         <Button size="sm" onClick={async () => {
-                            // anonymize and copy first 5 memories
-                            const res = await memoryService.searchMemory('', { limit: 5 });
-                            const data = (res.results || []).map((m: any) => ({ text: (m.memory || m.content || m.text || '').slice(0, 500) }));
-                            const anonymized = JSON.stringify(data, null, 2);
-                            await navigator.clipboard.writeText(anonymized);
-                            alert('Anonymized memories copied to clipboard');
+                            try {
+                                // anonymize and copy first 5 memories
+                                const res = await memoryService.searchMemory('', { limit: 5 });
+                                const data = (res.results || []).map((m: any) => ({ text: (m.memory || m.content || m.text || '').slice(0, 500) }));
+                                const anonymized = JSON.stringify(data, null, 2);
+                                await navigator.clipboard.writeText(anonymized);
+                                alert('Anonymized memories copied to clipboard');
+                            } catch (err: any) {
+                                setError('Share failed: ' + (err?.message || 'Unknown error'));
+                            }
                         }}>Share anonymized</Button>
                     )}
                 </div>

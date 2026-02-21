@@ -4,21 +4,22 @@ import cors from "cors";
 // Adjust these imports to match the actual package / path you're using.
 // If using the local TS Memory class, import from its path. If using an npm package, use that package name.
 import { Memory } from "mem0ai/oss";
-import MemoryClient from "mem0ai";
+// MemoryClient import commented out - using OSS mode
+// import MemoryClient from "mem0ai";
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
 const mem0ApiKey = process.env.MEM0_API_KEY;
-const openaiApiKey = process.env.OPENAI_API_KEY;
+const openrouterApiKey = process.env.OPENAI_API_KEY;
 const qdrantHost = process.env.QDRANT_HOST || "localhost";
 const qdrantPort = process.env.QDRANT_PORT ? Number(process.env.QDRANT_PORT) : 6333;
 const qdrantApiKey = process.env.QDRANT_API_KEY || "";
 
 console.log("\n========== MEM0 SERVER INITIALIZATION ==========");
 console.log(`Qdrant: ${qdrantHost}:${qdrantPort}`);
-console.log(`OpenAI API Key: ${openaiApiKey ? "✓ configured" : "✗ NOT configured"}`);
+console.log(`OpenRouter API Key: ${openrouterApiKey ? "✓ configured" : "✗ NOT configured"}`);
 console.log(`Mem0 API Key: ${mem0ApiKey ? "✓ configured" : "✗ using OSS mode"}`);
 
 let mem0Client: any = null;
@@ -35,14 +36,14 @@ let mem0Client: any = null;
 
 // else {
 try {
-    const QDRANT_URL = `http://${qdrantHost}:${qdrantPort}`;
+    // qdrantUrl used for logging purposes
     console.log("Initializing mem0 OSS with Qdrant...");
     mem0Client = new Memory({
         version: "v1.1",
         embedder: {
             provider: "openai",
             config: {
-                apiKey: openaiApiKey || "",
+                apiKey: openrouterApiKey || "",
                 model: "text-embedding-3-small",
             },
         },
@@ -62,8 +63,8 @@ try {
         llm: {
             provider: "openai",
             config: {
-                apiKey: openaiApiKey || "",
-                model: "gpt-4.1-nano",
+                apiKey: openrouterApiKey || "",
+                model: "xiaomi/mimo-v2-flash:free",
             },
         },
         historyDbPath: "memory.db",
@@ -75,7 +76,7 @@ try {
 }
 console.log("=============================================\n");
 
-function requireClient(req: express.Request, res: express.Response, next: express.NextFunction) {
+function requireClient(_req: express.Request, res: express.Response, next: express.NextFunction) {
     if (!mem0Client) return res.status(503).json({ error: "mem0 not configured on server" });
     next();
 }
@@ -104,7 +105,8 @@ app.post("/api/mem0/add", requireClient, async (req: express.Request, res: expre
         const agentId = incomingOpts?.agentId ?? incomingOpts?.agent_id;
         const runId = incomingOpts?.runId ?? incomingOpts?.run_id;
         const metadata = incomingOpts?.metadata ?? incomingOpts?.meta ?? {};
-        const infer = incomingOpts?.infer ?? true;
+        // infer option currently not used but kept for future compatibility
+        // const _infer = incomingOpts?.infer ?? true;
 
         console.log("\n========== MEM0 ADD OPERATION ==========");
         console.log(`Timestamp: ${new Date().toISOString()}`);

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { robustStorage } from '@/lib/robustStorage';
 import { v4 as uuidv4 } from 'uuid'; // Import and alias uuid
 import {
     trackCreateEntry,
@@ -7,6 +8,8 @@ import {
     trackSendMessage,
     trackEvent, // Import generic trackEvent
 } from '@/services/analyticsService';
+import { autoSaveJournalEntry, autoSaveMessage } from '@/services/memoryAutoSave';
+import { getRepository } from '@/services/storage/RepositoryFactory';
 
 export interface JournalEntry {
     id: string;
@@ -14,6 +17,7 @@ export interface JournalEntry {
     content: string;
     date: string;
     chatId?: string; // Thread ID for entry-specific chat history
+    tags?: string[]; // AI-generated or manual tags
 }
 
 export interface Message {
@@ -38,6 +42,7 @@ export interface JournalState {
     getEntryById: (id: string) => JournalEntry | undefined;
     createEntry: () => string; // Returns the ID of the newly created entry
     deleteEntry: (id: string) => void; // Delete a journal entry by ID
+    updateEntryTags: (id: string, tags: string[]) => void;
 
     // Batch import capabilities
     createEntryWithData: (title: string, content: string, date?: string) => string;
@@ -63,6 +68,9 @@ export interface JournalState {
      * Optionally, filter by sender (e.g., only AI messages).
      */
     markAllMessagesAsReadInThread: (threadId: string, options?: { sender?: 'user' | 'ai' }) => void;
+
+    // Sync
+    syncFromStorage: () => Promise<void>;
 }
 
 // Define a constant for the global chat thread
@@ -79,21 +87,19 @@ const useJournalStore = create<JournalState>()(
              */
             addMessage: (sender, text, threadId, entryId, isRealtimeReflection = false, reflectedContent, isRead = false) => {
                 const messageId = uuidv4(); // Generate a unique message ID
+                const message: Message = {
+                    messageId,
+                    sender,
+                    text,
+                    timestamp: new Date().toISOString(),
+                    entryId,
+                    threadId,
+                    isRealtimeReflection,
+                    ...(reflectedContent ? { reflectedContent } : {}),
+                    isRead,
+                };
                 set((state) => ({
-                    messages: [
-                        ...state.messages,
-                        {
-                            messageId,
-                            sender,
-                            text,
-                            timestamp: new Date().toISOString(),
-                            entryId,
-                            threadId,
-                            isRealtimeReflection,
-                            ...(reflectedContent ? { reflectedContent } : {}),
-                            isRead,
-                        },
-                    ],
+                    messages: [...state.messages, message],
                 }));
                 // Track user messages and AI reflections
                 if (sender === 'user') {
@@ -101,16 +107,41 @@ const useJournalStore = create<JournalState>()(
                 } else if (isRealtimeReflection) {
                     trackEvent('AI', 'AddRealtimeReflection', threadId); // Track reflection addition
                 }
+
+                // Auto-save message to index into vector store
+                void autoSaveMessage(message);
+                // Persist via Repository
+                void getRepository().addMessageToJournalEntry(message);
+
                 return messageId; // Return the generated message ID
             },
             updateEntry: (id, content) =>
-                set((state) => ({
-                    entries: state.entries.map((e) => (e.id === id ? { ...e, content } : e)),
-                })),
+                set((state) => {
+                    const entry = state.entries.find((e) => e.id === id);
+                    if (entry) {
+                        const updatedEntry = { ...entry, content };
+                        // Auto-save entry to index into vector store (deduped in memoryAutoSave)
+                        void autoSaveJournalEntry(updatedEntry);
+                        // Persist via Repository
+                        void getRepository().updateJournalEntry(updatedEntry);
+                        return {
+                            entries: state.entries.map((e) => (e.id === id ? updatedEntry : e)),
+                        };
+                    }
+                    return state;
+                }),
             updateEntryTitle: (id, title) =>
-                set((state) => ({
-                    entries: state.entries.map((e) => (e.id === id ? { ...e, title } : e)),
-                })),
+                set((state) => {
+                    const entry = state.entries.find((e) => e.id === id);
+                    if (entry) {
+                        const updated = { ...entry, title };
+                        void getRepository().updateJournalEntry(updated);
+                        return {
+                            entries: state.entries.map((e) => (e.id === id ? updated : e))
+                        };
+                    }
+                    return state;
+                }),
             getEntryById: (id) => get().entries.find((e) => e.id === id),
             updateLastMessage: (text: string) =>
                 set((state) => ({
@@ -128,6 +159,8 @@ const useJournalStore = create<JournalState>()(
                 };
                 set((state) => ({ entries: [...state.entries, newEntry] }));
                 trackCreateEntry(); // Track entry creation
+                void autoSaveJournalEntry(newEntry);
+                void getRepository().createJournalEntry(newEntry);
                 return id;
             },
             deleteEntry: (id) => {
@@ -146,6 +179,7 @@ const useJournalStore = create<JournalState>()(
                         : {}),
                 }));
                 trackDeleteEntry(); // Track entry deletion
+                void getRepository().deleteJournalEntry(id);
             },
             createEntryWithData: (title, content, date) => {
                 const id = `entry-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -197,6 +231,10 @@ const useJournalStore = create<JournalState>()(
                 }));
                 return newThreadId;
             },
+            updateEntryTags: (id, tags) =>
+                set((state) => ({
+                    entries: state.entries.map((e) => (e.id === id ? { ...e, tags } : e)),
+                })),
             updateMessageById: (messageId, newText) => {
                 set((state) => ({
                     messages: state.messages.map((message) =>
@@ -223,9 +261,18 @@ const useJournalStore = create<JournalState>()(
                     }),
                 }));
             },
+
+            syncFromStorage: async () => {
+                const repo = getRepository();
+                const entries = await repo.getJournalEntries();
+                // We might need to fetch messages too if we are loading fresh
+                // For now, let's just sync entries to start
+                set({ entries });
+            },
         }),
         {
             name: 'journal-storage',
+            storage: createJSONStorage(() => robustStorage),
         }
     )
 );
