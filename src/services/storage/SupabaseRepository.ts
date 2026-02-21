@@ -1,12 +1,21 @@
-import * as supabaseService from '@/services/supabaseService';
 import type { IDataRepository, StashItem } from './types';
 import type { JournalEntry, Message as JournalMessage } from '@/store/journalStore';
 import type { Conversation, Message as ConversationMessage } from '@/store/conversationStore';
+import type { IAuthService } from '../auth/IAuthService';
+import type { IJournalService } from '../journal/IJournalService';
+import type { IConversationService } from '../conversation/IConversationService';
+import type { IFeedbackService } from '../feedback/IFeedbackService';
 
 export class SupabaseRepository implements IDataRepository {
+  constructor(
+    _authService: IAuthService,
+    private journalService: IJournalService,
+    private conversationService: IConversationService,
+    private feedbackService: IFeedbackService,
+  ) {}
   // --- Journal Entries ---
   async getJournalEntries(): Promise<JournalEntry[]> {
-    const { entries, error } = await supabaseService.getUserJournalEntries();
+    const { entries, error } = await this.journalService.getUserJournalEntries();
     if (error) {
       console.error('SupabaseRepository: Failed to get journal entries', error);
       // We might want to throw here or return empty array depending on error handling strategy.
@@ -17,7 +26,7 @@ export class SupabaseRepository implements IDataRepository {
   }
 
   async createJournalEntry(entry: JournalEntry): Promise<JournalEntry> {
-    const { entry: created, error } = await supabaseService.createJournalEntry({
+    const { entry: created, error } = await this.journalService.createJournalEntry({
       ...entry,
       id: entry.id // Explicitly passing client ID as external ID
     });
@@ -28,18 +37,18 @@ export class SupabaseRepository implements IDataRepository {
   }
 
   async updateJournalEntry(entry: JournalEntry): Promise<void> {
-    const { error } = await supabaseService.updateJournalEntry(entry);
+    const { error } = await this.journalService.updateJournalEntry(entry);
     if (error) throw error;
   }
 
   async deleteJournalEntry(id: string): Promise<void> {
-    const { error } = await supabaseService.deleteJournalEntry(id);
+    const { error } = await this.journalService.deleteJournalEntry(id);
     if (error) throw error;
   }
 
   // --- Conversations ---
   async getConversations(): Promise<Conversation[]> {
-    const { threads, error } = await supabaseService.getUserThreads();
+    const { threads, error } = await this.conversationService.getUserThreads();
     if (error) {
       console.error('SupabaseRepository: Failed to get threads', error);
       return [];
@@ -51,7 +60,7 @@ export class SupabaseRepository implements IDataRepository {
   }
 
   async createConversation(conversation: Conversation): Promise<void> {
-    const { error } = await supabaseService.createThread({
+    const { error } = await this.conversationService.createThread({
       ...conversation,
       // If it's linked to an entry, it might be separate, but createThread handles it
       id: conversation.id,
@@ -61,7 +70,7 @@ export class SupabaseRepository implements IDataRepository {
   }
 
   async updateConversation(conversation: Conversation): Promise<void> {
-    const { error } = await supabaseService.updateThread(conversation.id, {
+    const { error } = await this.conversationService.updateThread(conversation.id, {
       title: conversation.title
       // other fields if needed
     });
@@ -69,24 +78,19 @@ export class SupabaseRepository implements IDataRepository {
   }
 
   async deleteConversation(id: string): Promise<void> {
-    const { error } = await supabaseService.deleteThread(id);
+    const { error } = await this.conversationService.deleteThread(id);
     if (error) throw error;
   }
 
   // --- Global Messages ---
   async getMessagesForConversation(conversationId: string): Promise<ConversationMessage[]> {
-    const { messages, error } = await supabaseService.getMessagesForThread(conversationId);
+    const { messages, error } = await this.conversationService.getMessagesForThread(conversationId);
     if (error) {
       console.error('SupabaseRepository: Failed to get messages', error);
       return [];
     }
-    // Map Journal Message type (returned by service) to Conversation Message type?
-    // They are slightly different interfaces in the store definitions.
-    // Service returns `Message` (from journalStore context predominantly in import).
-    // Conversation store message: { sender, messageId, text, entryId, timestamp, conversationId }
-    // Service Message: { messageId, sender, text, entryId, timestamp, threadId, isRealtimeReflection, ... }
-
-    return messages.map(m => ({
+    // Map Journal Message type (returned by service) to Conversation Message type
+    return messages.map((m: JournalMessage) => ({
       sender: m.sender,
       messageId: m.messageId,
       text: m.text,
@@ -97,7 +101,7 @@ export class SupabaseRepository implements IDataRepository {
   }
 
   async addMessageToConversation(message: ConversationMessage): Promise<void> {
-    const { error } = await supabaseService.addMessage({
+    const { error } = await this.conversationService.addMessage({
       messageId: message.messageId,
       sender: message.sender,
       text: message.text,
@@ -111,14 +115,14 @@ export class SupabaseRepository implements IDataRepository {
 
   // --- Generic Update ---
   async updateMessage(messageId: string, content: string): Promise<void> {
-    const { error } = await supabaseService.updateMessage(messageId, { text: content });
+    const { error } = await this.conversationService.updateMessage(messageId, { text: content });
     if (error) throw error;
   }
 
 
   // --- Journal Messages ---
-  async getMessagesForJournalEntry(entryId: string, threadId: string): Promise<JournalMessage[]> {
-    const { messages, error } = await supabaseService.getMessagesForThread(threadId);
+  async getMessagesForJournalEntry(_entryId: string, threadId: string): Promise<JournalMessage[]> {
+    const { messages, error } = await this.conversationService.getMessagesForThread(threadId);
     if (error) {
       console.error('SupabaseRepository: Failed to get messages for entry', error);
       return [];
@@ -127,7 +131,7 @@ export class SupabaseRepository implements IDataRepository {
   }
 
   async addMessageToJournalEntry(message: JournalMessage): Promise<void> {
-    const { error } = await supabaseService.addMessage({
+    const { error } = await this.conversationService.addMessage({
       messageId: message.messageId,
       sender: message.sender,
       text: message.text,
@@ -143,7 +147,7 @@ export class SupabaseRepository implements IDataRepository {
 
   // --- Stash ---
   async getStash(): Promise<StashItem[]> {
-    const { items, error } = await supabaseService.getStash();
+    const { items, error } = await this.feedbackService.getStash();
     if (error) {
       console.error('SupabaseRepository: Failed to get stash', error);
       return [];
@@ -152,7 +156,7 @@ export class SupabaseRepository implements IDataRepository {
   }
 
   async addToStash(item: Omit<StashItem, 'stashItemId' | 'userId' | 'stashedAt'>): Promise<void> {
-    const { error } = await supabaseService.stashReflection({
+    const { error } = await this.feedbackService.stashReflection({
       reflectionText: item.reflectionText,
       sourceType: item.sourceType,
       sourceId: item.sourceId,
@@ -163,7 +167,7 @@ export class SupabaseRepository implements IDataRepository {
   }
 
   async removeFromStash(id: string): Promise<void> {
-    const { error } = await supabaseService.unstashReflection(id);
+    const { error } = await this.feedbackService.unstashReflection(id);
     if (error) throw error;
   }
 }
