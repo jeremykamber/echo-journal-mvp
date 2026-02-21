@@ -20,6 +20,7 @@ import FeedbackNudge from '@/components/FeedbackNudge';
 
 // Context imports
 import { AIProvider } from './context/AIContext';
+import { AuthProvider } from './context/AuthContext';
 
 // Page imports
 import Entry from './pages/Entry';
@@ -31,6 +32,10 @@ import PrivacyInfo from './pages/PrivacyInfo';
 import Clusters from './pages/Clusters';
 import Reports from './pages/Reports';
 import NotFound from './pages/NotFound';
+import Login from './pages/Login';
+
+// Component imports
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Hook imports
 import { useOnboardingTrigger } from './hooks/useOnboardingTrigger';
@@ -93,39 +98,41 @@ function AppContent() {
   const { isOpen, title, message, hideSuccessDialog } = useSuccessDialogStore();
 
   return (
-    <SidebarProvider>
-      <ThemeEffect />
-      <DataSyncEffect />
-      <TrackPageViews />
-      <AppSidebar />
-      <SidebarInset>
-        <Routes>
-          <Route path="/" element={<AIChatScreen />} />
-          <Route path="/entry/:id" element={<Entry />} />
-          <Route path="/conversation/:id" element={<AIChatScreen />} />
-          <Route path="/settings" element={<SettingsScreen />} />
-          <Route path="/entries" element={<Entries />} />
-          <Route path="/privacy-info" element={<PrivacyInfo />} />
-          <Route path="/stash" element={<Stash />} />
-          <Route path="/clusters" element={<Clusters />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </SidebarInset>
+    <ProtectedRoute>
+      <SidebarProvider>
+        <ThemeEffect />
+        <DataSyncEffect />
+        <TrackPageViews />
+        <AppSidebar />
+        <SidebarInset>
+          <Routes>
+            <Route path="/" element={<AIChatScreen />} />
+            <Route path="/entry/:id" element={<Entry />} />
+            <Route path="/conversation/:id" element={<AIChatScreen />} />
+            <Route path="/settings" element={<SettingsScreen />} />
+            <Route path="/entries" element={<Entries />} />
+            <Route path="/privacy-info" element={<PrivacyInfo />} />
+            <Route path="/stash" element={<Stash />} />
+            <Route path="/clusters" element={<Clusters />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </SidebarInset>
 
-      {/* Success Dialog */}
-      <SuccessDialog
-        isOpen={isOpen}
-        onClose={hideSuccessDialog}
-        title={title}
-        message={message}
-      />
+        {/* Success Dialog */}
+        <SuccessDialog
+          isOpen={isOpen}
+          onClose={hideSuccessDialog}
+          title={title}
+          message={message}
+        />
 
-      {/* Onboarding Modal */}
-      <OnboardingModal />
-      <Toaster />
-      <FeedbackNudge />
-    </SidebarProvider>
+        {/* Onboarding Modal */}
+        <OnboardingModal />
+        <Toaster />
+        <FeedbackNudge />
+      </SidebarProvider>
+    </ProtectedRoute>
   );
 }
 
@@ -133,9 +140,14 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AIProvider>
-        <AppContent />
-      </AIProvider>
+      <AuthProvider>
+        <AIProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/*" element={<AppContent />} />
+          </Routes>
+        </AIProvider>
+      </AuthProvider>
     </Router>
   );
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { useSettingsStore, AppSettings } from '@/store/settingsStore';
 import ExportEntriesButton from '@/components/ExportEntriesButton';
 import { AIProviderSettings } from '@/components/AIProvider';
+import { AccountSettings } from '@/components/AccountSettings';
 import { trackSettingsChange } from '@/services/analyticsService';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -58,6 +59,7 @@ const SettingsScreen: React.FC = () => {
             <AppHeader center={<span className="text-2xl font-bold">Settings</span>} />
             <div className="max-w-xl mx-auto p-8">
                 <div className="space-y-8"> {/* Increased spacing between sections */}
+                    <AccountSettings />
                     <div className="space-y-2"> {/* Added spacing within each section */}
                         <Label htmlFor="reflectionSimilarityThreshold" className="mb-1">
                             Reflection Similarity Threshold
