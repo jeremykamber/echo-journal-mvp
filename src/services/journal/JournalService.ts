@@ -39,7 +39,7 @@ export class JournalService implements IJournalService {
         content: this.shouldEncrypt()
           ? await encryptText(entry.content, user.id)
           : entry.content,
-        date: entry.date,
+        date: new Date(entry.date).toISOString().split('T')[0], // Format as DATE
         external_id: entry.id, // Store client-side ID as external_id
       };
 
@@ -179,7 +179,7 @@ export class JournalService implements IJournalService {
           content: this.shouldEncrypt()
             ? await encryptText(entry.content, user.id)
             : entry.content,
-          date: entry.date,
+          date: new Date(entry.date).toISOString().split('T')[0], // Format as DATE
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingEntry.id);
