@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -11,6 +10,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useState } from 'react'
+import { authService } from '@/services/storage/RepositoryFactory'
 
 export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   const [email, setEmail] = useState('')
@@ -21,7 +21,6 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
   const [success, setSuccess] = useState(false)
 
   const handleSignUp = async (e: React.FormEvent) => {
-    const supabase = createClient()
     e.preventDefault()
     setError(null)
 
@@ -32,10 +31,9 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
     setIsLoading(true)
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-      })
+      // Extract name from email or use default
+      const name = email.split('@')[0] || 'User'
+      const { error } = await authService.registerUser(email, password, name)
       if (error) throw error
       setSuccess(true)
     } catch (error: unknown) {

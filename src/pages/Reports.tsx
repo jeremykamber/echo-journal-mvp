@@ -5,6 +5,7 @@ import { SupabaseEventRepository } from '@/features/epra/infrastructure/Supabase
 import { ProcessMap } from '@/features/epra/components/ProcessMap';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { authService } from '@/services/storage/RepositoryFactory';
 
 const Reports: React.FC = () => {
   const [reports, setReports] = useState<InsightReport[]>([]);
@@ -14,7 +15,7 @@ const Reports: React.FC = () => {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const { data: { user } } = await (await import('@/clients/supabaseClient')).supabase.auth.getUser();
+        const { user } = await authService.getCurrentUser();
 
         if (!user) {
           setReports([]);

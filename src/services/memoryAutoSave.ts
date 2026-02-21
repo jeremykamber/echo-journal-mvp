@@ -1,5 +1,5 @@
 import makeMemoryService from '@/features/memory/services/memoryService';
-import { supabase } from '@/clients/supabaseClient';
+import { authService } from '@/services/storage/RepositoryFactory';
 import type { JournalEntry, Message } from '@/store/journalStore';
 import { indexJournalEntry, indexConversationMessage } from '@/services/persistentVectorStore';
 
@@ -26,8 +26,8 @@ function hashKey(text: string, source?: string, sourceId?: string) {
 
 async function getCurrentUserId(): Promise<string | undefined> {
     try {
-        const { data } = await supabase.auth.getUser();
-        return data.user?.id;
+        const { user } = await authService.getCurrentUser();
+        return user?.id;
     } catch (e) {
         return undefined;
     }

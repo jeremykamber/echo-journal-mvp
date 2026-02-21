@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -11,6 +10,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useState } from 'react'
+import { authService } from '@/services/storage/RepositoryFactory'
 
 export function UpdatePasswordForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   const [password, setPassword] = useState('')
@@ -18,13 +18,12 @@ export function UpdatePasswordForm({ className, ...props }: React.ComponentProps
   const [isLoading, setIsLoading] = useState(false)
 
   const handleForgotPassword = async (e: React.FormEvent) => {
-    const supabase = createClient()
     e.preventDefault()
     setIsLoading(true)
     setError(null)
 
     try {
-      const { error } = await supabase.auth.updateUser({ password })
+      const { error } = await authService.updatePassword(password)
       if (error) throw error
       // Update this route to redirect to an authenticated route. The user already has an active session.
       location.href = '/protected'

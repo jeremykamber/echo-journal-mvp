@@ -51,4 +51,19 @@ export interface IAuthService {
     user: User | null;
     error: SupabaseError | null;
   }>;
+
+  /**
+   * Update current user's password
+   * @param password New password
+   * @returns Success status or error
+   */
+  updatePassword(password: string): Promise<{ success: boolean; error: SupabaseError | null }>;
+
+  /**
+   * Send password reset email
+   * @param email User's email
+   * @param redirectTo URL to redirect to after password reset
+   * @returns Success status or error
+   */
+  resetPasswordForEmail(email: string, redirectTo?: string): Promise<{ success: boolean; error: SupabaseError | null }>;
 }

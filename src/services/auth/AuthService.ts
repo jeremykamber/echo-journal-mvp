@@ -206,7 +206,40 @@ export class AuthService implements IAuthService {
   }
 
   /**
-   * Update the user's last seen timestamp
+   * Update current user's password
+   * @param password New password
+   * @returns Success status or error
+   */
+  async updatePassword(password: string): Promise<{ success: boolean; error: SupabaseError | null }> {
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw new SupabaseError("Password update failed", error);
+      return { success: true, error: null };
+    } catch (error) {
+      return { success: false, error: error instanceof SupabaseError ? error : new SupabaseError("Password update failed") };
+    }
+  }
+
+  /**
+   * Send password reset email
+   * @param email User's email
+   * @param redirectTo URL to redirect to after password reset
+   * @returns Success status or error
+   */
+  async resetPasswordForEmail(email: string, redirectTo?: string): Promise<{ success: boolean; error: SupabaseError | null }> {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectTo || `${window.location.origin}/update-password`,
+      });
+      if (error) throw new SupabaseError("Password reset failed", error);
+      return { success: true, error: null };
+    } catch (error) {
+      return { success: false, error: error instanceof SupabaseError ? error : new SupabaseError("Password reset failed") };
+    }
+  }
+
+  /**
+   * Update last seen timestamp for a user
    * @param userId User's ID
    */
   private async updateLastSeen(userId: string): Promise<void> {
