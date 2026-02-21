@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import type { SupabaseError } from "@/services/supabaseService";
+import type { SupabaseError } from "@/types/shared";
 
 /**
  * Interface for authentication service

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trackReflectionReaction } from '@/lib/analytics';
-import { submitReflectionFeedback } from '@/services/supabaseService';
+import { feedbackService } from '@/services/storage/RepositoryFactory';
 import {
   Tooltip,
   TooltipContent,
@@ -47,7 +47,7 @@ const ReflectionReaction: React.FC<ReflectionReactionProps> = ({
       trackReflectionReaction(type, source, reflectionType);
 
       // Submit reaction to Supabase
-      const result = await submitReflectionFeedback(reflectionText, type, reflectionType);
+      const result = await feedbackService.submitReflectionFeedback(reflectionText, type, reflectionType);
 
       if (!result.success) {
         throw result.error || new Error('Failed to submit feedback');

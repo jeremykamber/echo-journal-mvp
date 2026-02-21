@@ -1,7 +1,7 @@
 import type {
   StashItem,
   StashSourceType,
-} from "@/services/supabaseService";
+} from "@/services/storage/types";
 
 /**
  * Interface for feedback service

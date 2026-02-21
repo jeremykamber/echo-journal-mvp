@@ -6,14 +6,16 @@ import { AuthService } from '../auth/AuthService';
 import { JournalService } from '../journal/JournalService';
 import { ConversationService } from '../conversation/ConversationService';
 import { FeedbackService } from '../feedback/FeedbackService';
+import { UserService } from '../user/UserService';
 
 const localRepo = new LocalRepository();
 
 // Create service instances
-const authService = new AuthService();
-const journalService = new JournalService(authService);
-const conversationService = new ConversationService(authService);
-const feedbackService = new FeedbackService(authService);
+export const authService = new AuthService();
+export const journalService = new JournalService(authService);
+export const conversationService = new ConversationService(authService);
+export const feedbackService = new FeedbackService(authService);
+export const userService = new UserService(authService);
 
 const supabaseRepo = new SupabaseRepository(
   authService,

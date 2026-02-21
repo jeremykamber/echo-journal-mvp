@@ -1,6 +1,6 @@
-import type { UserProfile } from "@/services/supabaseService";
+import type { UserProfile } from "@/types/shared";
 import type { AppSettings } from "@/store/settingsStore";
-import type { SupabaseError } from "@/services/supabaseService";
+import type { SupabaseError } from "@/types/shared";
 
 /**
  * Interface for user service

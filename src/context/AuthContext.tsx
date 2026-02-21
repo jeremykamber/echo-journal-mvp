@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/clients/supabaseClient';
-import { UserProfile, getUserProfile, getCurrentUser } from '@/services/supabaseService';
+import { authService, userService } from '@/services/storage/RepositoryFactory';
+import { UserProfile } from '@/types/shared';
 
 interface AuthContextType {
   user: User | null;
@@ -20,7 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = async () => {
     if (user) {
-      const { profile: userProfile } = await getUserProfile(user.id);
+      const { profile: userProfile } = await userService.getUserProfile(user.id);
       setProfile(userProfile);
     } else {
       setProfile(null);
@@ -34,7 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const timeoutId = setTimeout(() => setLoading(false), 5000);
 
       try {
-        const { user: currentUser } = await getCurrentUser();
+        const { user: currentUser } = await authService.getCurrentUser();
         setUser(currentUser);
 
         // Unblock the UI as soon as we have the authentication status
@@ -42,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearTimeout(timeoutId);
 
         if (currentUser) {
-          const { profile: userProfile } = await getUserProfile(currentUser.id);
+          const { profile: userProfile } = await userService.getUserProfile(currentUser.id);
           setProfile(userProfile);
         }
       } catch (err) {
@@ -64,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
 
         if (currentUser) {
-          const { profile: userProfile } = await getUserProfile(currentUser.id);
+          const { profile: userProfile } = await userService.getUserProfile(currentUser.id);
           setProfile(userProfile);
         } else {
           setProfile(null);
@@ -79,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await authService.logout();
   };
 
   return (

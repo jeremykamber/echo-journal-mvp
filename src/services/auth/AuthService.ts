@@ -1,7 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/clients/supabaseClient";
 import type { IAuthService } from "./IAuthService";
-import { SupabaseError } from "@/services/supabaseService";
+import { SupabaseError } from "@/types/shared";
 
 /**
  * Authentication service implementing IAuthService interface

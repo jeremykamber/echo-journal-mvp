@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { loginWithEmail, registerUser, loginWithGoogle } from '@/services/supabaseService';
+import { authService } from '@/services/storage/RepositoryFactory';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,11 +25,11 @@ const Login: React.FC = () => {
 
     try {
       if (isLogin) {
-        const { error } = await loginWithEmail(email, password);
+        const { error } = await authService.loginWithEmail(email, password);
         if (error) throw error;
         toast.success('Welcome back!');
       } else {
-        const { error } = await registerUser(email, password, name);
+        const { error } = await authService.registerUser(email, password, name);
         if (error) throw error;
         toast.success('Account created successfully!');
       }
@@ -45,7 +45,7 @@ const Login: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      await loginWithGoogle();
+      await authService.loginWithGoogle();
     } catch (error: any) {
       toast.error(error.message || 'Google login failed');
     }

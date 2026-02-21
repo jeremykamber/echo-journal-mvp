@@ -1,7 +1,7 @@
 import type {
   StashItem,
   StashSourceType,
-} from "@/services/supabaseService";
+} from "@/services/storage/types";
 import type { IAuthService } from "../auth/IAuthService";
 import type { IFeedbackService } from "./IFeedbackService";
 import { supabase } from "@/clients/supabaseClient";

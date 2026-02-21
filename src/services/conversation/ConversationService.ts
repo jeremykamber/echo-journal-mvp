@@ -2,7 +2,7 @@ import type { Conversation } from "@/store/conversationStore";
 import type { Message } from "@/store/journalStore";
 import type { IConversationService } from "./IConversationService";
 import type { IAuthService } from "../auth/IAuthService";
-import { SupabaseError } from "@/services/supabaseService";
+import { SupabaseError } from "@/types/shared";
 import { supabase } from "@/clients/supabaseClient";
 import { useSettingsStore } from "@/store/settingsStore";
 import {

@@ -1,8 +1,8 @@
-import type { UserProfile } from "@/services/supabaseService";
+import type { UserProfile } from "@/types/shared";
 import type { AppSettings } from "@/store/settingsStore";
 import type { IAuthService } from "../auth/IAuthService";
 import type { IUserService } from "./IUserService";
-import { SupabaseError } from "@/services/supabaseService";
+import { SupabaseError } from "@/types/shared";
 import { supabase } from "@/clients/supabaseClient";
 
 /**

@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { logout, updateUserProfile } from '@/services/supabaseService';
+import { authService, userService } from '@/services/storage/RepositoryFactory';
 import { toast } from 'sonner';
 import { LogOut, User, Mail, Save, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +22,7 @@ export const AccountSettings: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { success, error } = await updateUserProfile(user.id, { name });
+      const { success, error } = await userService.updateUserProfile(user.id, { name });
       if (!success) throw error;
       await refreshProfile();
       toast.success('Profile updated successfully');
@@ -35,7 +35,8 @@ export const AccountSettings: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      const { error } = await authService.logout();
+      if (error) throw error;
       toast.success('Logged out successfully');
       window.location.href = '/login';
     } catch (error: any) {

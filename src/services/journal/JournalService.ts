@@ -1,7 +1,7 @@
 import type { JournalEntry } from "@/store/journalStore";
 import type { IJournalService } from "./IJournalService";
 import type { IAuthService } from "../auth/IAuthService";
-import { SupabaseError } from "@/services/supabaseService";
+import { SupabaseError } from "@/types/shared";
 import { supabase } from "@/clients/supabaseClient";
 import { useSettingsStore } from "@/store/settingsStore";
 import {
